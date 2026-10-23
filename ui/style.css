@@ -165,3 +165,67 @@ input[type="range"] { flex: 1; accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
 }
+
+/* recorded packs */
+.pack .del {
+  width: 28px; height: 28px; border-radius: 50%; flex: none; cursor: pointer;
+  border: 1px solid transparent; background: transparent; color: var(--muted); font-size: 16px; line-height: 1;
+}
+.pack .del:hover { color: #d9473b; border-color: var(--line); }
+.record-cta {
+  margin-top: 10px; width: 100%; display: flex; align-items: center; gap: 12px; text-align: left;
+  padding: 10px 12px; border-radius: 12px; cursor: pointer; font: inherit; color: inherit;
+  border: 1.5px dashed var(--line); background: transparent;
+}
+.record-cta:hover { border-color: var(--accent); }
+.record-cta small { display: block; color: var(--muted); font-size: 12px; }
+.rec-dot { width: 12px; height: 12px; margin: 0 14px; border-radius: 50%; background: #e5484d; flex: none; box-shadow: 0 0 0 4px color-mix(in srgb, #e5484d 20%, transparent); }
+.rec-dot.live { margin: 0; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+/* modal */
+.modal { position: fixed; inset: 0; background: rgba(20, 12, 6, 0.45); display: grid; place-items: center; padding: 24px; z-index: 10; }
+.modal[hidden] { display: none; }
+.sheet {
+  width: min(560px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+  padding: 20px; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 14px;
+}
+.sheet-head { display: flex; justify-content: space-between; align-items: center; }
+.sheet h3 { margin: 0; font-size: 17px; }
+.steps { display: flex; gap: 5px; }
+.steps i { width: 18px; height: 4px; border-radius: 2px; background: var(--line); }
+.steps i.on { background: var(--accent); }
+.rec-step { display: none; }
+.rec-step.active { display: block; }
+.rec-step p { margin: 0 0 10px; }
+.tips { margin: 0 0 14px; padding-left: 18px; color: var(--muted); }
+.tips li { margin: 3px 0; }
+.field { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: 12px; color: var(--muted); }
+.field input, textarea {
+  font: 14px/1.5 inherit; font-family: inherit; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; outline: none; user-select: text; -webkit-user-select: text;
+}
+.field input:focus, textarea:focus { border-color: var(--accent); }
+textarea { width: 100%; resize: none; }
+.prompt { color: var(--muted); }
+.big-prompt { font-size: 18px; color: var(--ink); text-align: center; padding: 18px 0 8px; }
+.sample { font-size: 16px; font-weight: 500; background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+kbd {
+  font: 600 15px/1 inherit; padding: 5px 10px; border-radius: 7px; background: var(--key);
+  border: 1px solid var(--key-edge); box-shadow: 0 3px 0 var(--key-edge);
+}
+.meter-row { display: flex; align-items: center; gap: 10px; }
+.meter-row[hidden] { display: none; }
+.meter { flex: 1; height: 8px; border-radius: 4px; background: var(--bg); overflow: hidden; }
+.meter-fill { height: 100%; width: 0; background: linear-gradient(90deg, #3fb950, #f0b429 70%, #e5484d); transition: width 80ms linear; }
+.count { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 64px; text-align: right; font-size: 12px; }
+.warn { font-size: 12.5px; color: #b8590f; background: color-mix(in srgb, #f0b429 15%, transparent); border-radius: 8px; padding: 8px 10px; }
+.warn[hidden] { display: none; }
+.link { font: inherit; border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.chips span { background: var(--bg); border-radius: 999px; padding: 4px 10px; font-size: 12.5px; }
+.chips b { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); text-align: center; }
+.sheet-foot { display: flex; gap: 8px; align-items: center; }
+.spacer { flex: 1; }
+.btn[hidden] { display: none; }

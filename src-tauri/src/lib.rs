@@ -3,12 +3,14 @@ mod engine;
 mod hook;
 mod keymap;
 mod packs;
+mod recorder;
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::json;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use parking_lot::Mutex;
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
@@ -19,7 +21,7 @@ const VOLUME_STEPS: [u32; 4] = [25, 50, 75, 100];
 
 struct Tray {
     toggle: CheckMenuItem<Wry>,
-    packs: Vec<(&'static str, CheckMenuItem<Wry>)>,
+    packs: Vec<(String, CheckMenuItem<Wry>)>,
     volumes: Vec<(u32, CheckMenuItem<Wry>)>,
 }
 
@@ -43,8 +45,8 @@ impl Tray {
 fn commit(app: &AppHandle, engine: &Engine, next: Settings) {
     engine.apply(next);
     let s = engine.settings.read().clone();
-    if let Some(tray) = app.try_state::<Tray>() {
-        tray.sync(&s);
+    if let Some(tray) = app.try_state::<Mutex<Tray>>() {
+        tray.lock().sync(&s);
     }
     let _ = app.emit("settings", &s);
 }
@@ -61,7 +63,7 @@ fn show_window(app: &AppHandle) {
 fn get_state(app: AppHandle, engine: State<Arc<Engine>>) -> serde_json::Value {
     json!({
         "settings": &*engine.settings.read(),
-        "packs": packs::PACKS,
+        "packs": engine.pack_list(),
         "permission": hook::permission(),
         "autostart": app.autolaunch().is_enabled().unwrap_or(false),
         "platform": std::env::consts::OS,
@@ -105,13 +107,17 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
     Ok(al.is_enabled().unwrap_or(false))
 }
 
-fn build_tray(app: &AppHandle, s: &Settings) -> tauri::Result<Tray> {
+fn build_menu(app: &AppHandle, engine: &Engine) -> tauri::Result<(Menu<Wry>, Tray)> {
+    let s = engine.settings.read().clone();
     let toggle = CheckMenuItem::with_id(app, "toggle", "Sounds On", true, s.enabled, None::<&str>)?;
-    let packs: Vec<_> = packs::PACKS
+    let packs: Vec<_> = engine
+        .pack_list()
         .iter()
         .map(|p| {
-            CheckMenuItem::with_id(app, format!("pack:{}", p.id), p.name, true, p.id == s.pack, None::<&str>)
-                .map(|item| (p.id, item))
+            let id = p["id"].as_str().unwrap_or_default().to_string();
+            let name = p["name"].as_str().unwrap_or_default();
+            CheckMenuItem::with_id(app, format!("pack:{id}"), name, true, id == s.pack, None::<&str>)
+                .map(|item| (id, item))
         })
         .collect::<Result<_, _>>()?;
     let volumes: Vec<_> = VOLUME_STEPS
@@ -140,7 +146,22 @@ fn build_tray(app: &AppHandle, s: &Settings) -> tauri::Result<Tray> {
             &quit,
         ],
     )?;
+    let tray = Tray { toggle, packs, volumes };
+    tray.sync(&s);
+    Ok((menu, tray))
+}
 
+/// Rebuilds the tray menu after packs were added or removed.
+fn refresh_tray(app: &AppHandle, engine: &Engine) {
+    let (Some(icon), Some(state)) = (app.tray_by_id("keybuddy"), app.try_state::<Mutex<Tray>>()) else { return };
+    if let Ok((menu, tray)) = build_menu(app, engine) {
+        let _ = icon.set_menu(Some(menu));
+        *state.lock() = tray;
+    }
+}
+
+fn build_tray(app: &AppHandle, engine: &Engine) -> tauri::Result<Tray> {
+    let (menu, tray) = build_menu(app, engine)?;
     TrayIconBuilder::with_id("keybuddy")
         .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .icon_as_template(true)
@@ -167,10 +188,54 @@ fn build_tray(app: &AppHandle, s: &Settings) -> tauri::Result<Tray> {
             commit(app, &engine, next);
         })
         .build(app)?;
-
-    let tray = Tray { toggle, packs, volumes };
-    tray.sync(s);
     Ok(tray)
+}
+
+#[tauri::command]
+fn record_start(engine: State<Arc<Engine>>) -> Result<String, String> {
+    engine.record_start()
+}
+
+#[tauri::command]
+fn record_status(engine: State<Arc<Engine>>) -> Option<recorder::Status> {
+    engine.record_status()
+}
+
+#[tauri::command]
+fn record_cancel(engine: State<Arc<Engine>>) {
+    engine.record_cancel();
+}
+
+#[tauri::command]
+async fn record_finish(
+    app: AppHandle,
+    engine: State<'_, Arc<Engine>>,
+    name: String,
+) -> Result<engine::CustomPack, String> {
+    let e = engine.inner().clone();
+    // Slicing takes a moment; keep it off the main thread.
+    let pack = tauri::async_runtime::spawn_blocking(move || e.record_finish(name))
+        .await
+        .map_err(|e| e.to_string())??;
+    refresh_tray(&app, &engine);
+    let _ = app.emit("packs", engine.pack_list());
+    Ok(pack)
+}
+
+#[tauri::command]
+fn delete_pack(app: AppHandle, engine: State<Arc<Engine>>, id: String) {
+    engine.delete_pack(&id);
+    refresh_tray(&app, &engine);
+    let _ = app.emit("packs", engine.pack_list());
+    let _ = app.emit("settings", &*engine.settings.read());
+}
+
+#[tauri::command]
+fn open_mic_settings() {
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone")
+        .spawn();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -186,7 +251,13 @@ pub fn run() {
             get_stats,
             permission,
             open_permission_settings,
-            set_autostart
+            set_autostart,
+            record_start,
+            record_status,
+            record_cancel,
+            record_finish,
+            delete_pack,
+            open_mic_settings
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -198,9 +269,8 @@ pub fn run() {
             engine.save_settings();
             app.manage(engine.clone());
 
-            let settings = engine.settings.read().clone();
-            let tray = build_tray(app.handle(), &settings)?;
-            app.manage(tray);
+            let tray = build_tray(app.handle(), &engine)?;
+            app.manage(Mutex::new(tray));
 
             let handle = app.handle().clone();
             let hook_engine = engine.clone();

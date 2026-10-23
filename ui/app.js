@@ -72,6 +72,8 @@ function bounce() {
   bounceTimer = setTimeout(() => b.classList.remove("press"), 90);
 }
 
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
 const PLAY_ICON = '<svg viewBox="0 0 12 12"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg>';
 
 function buildPacks(packs) {
@@ -84,13 +86,18 @@ function buildPacks(packs) {
     el.tabIndex = 0;
     el.dataset.id = p.id;
     el.innerHTML = `
-      <div class="glyph">${p.name[0]}</div>
+      <div class="glyph">${esc([...p.name][0] || "?")}</div>
       <div class="meta">
-        <div class="name">${p.name} <span class="kind">${p.kind}</span></div>
-        <div class="blurb">${p.blurb}</div>
+        <div class="name">${esc(p.name)} <span class="kind">${esc(p.kind)}</span></div>
+        <div class="blurb">${esc(p.blurb)}</div>
       </div>
-      <button class="play" title="Preview ${p.name}" aria-label="Preview ${p.name}">${PLAY_ICON}</button>`;
+      <button class="play" title="Preview" aria-label="Preview ${esc(p.name)}">${PLAY_ICON}</button>
+      ${p.custom ? `<button class="del" title="Delete" aria-label="Delete ${esc(p.name)}">×</button>` : ""}`;
     el.addEventListener("click", (e) => {
+      if (e.target.closest(".del")) {
+        if (confirm(`Delete "${p.name}"? This can't be undone.`)) invoke("delete_pack", { id: p.id });
+        return;
+      }
       if (e.target.closest(".play")) {
         invoke("preview", { pack: p.id });
         return;
@@ -181,6 +188,10 @@ async function init() {
   });
   $("perm-btn").addEventListener("click", () => invoke("open_permission_settings"));
 
+  await listen("packs", (e) => {
+    buildPacks(e.payload);
+    render();
+  });
   await listen("settings", (e) => {
     settings = e.payload;
     render();
@@ -191,12 +202,145 @@ async function init() {
     if (down) bounce();
   });
 
+  setupRecorder();
+
   setInterval(pollStats, 500);
   pollStats();
 
   setInterval(async () => {
     if (!$("perm").hidden) showPermission(await invoke("permission"));
   }, 2000);
+}
+
+// ---------- record your keyboard ----------
+
+const STEPS = [
+  { id: "intro" },
+  { id: "type", key: "normal", target: 60 },
+  { id: "space", key: "space", target: 8 },
+  { id: "enter", key: "enter", target: 8 },
+  { id: "back", key: "back", target: 8 },
+  { id: "working" },
+  { id: "done" },
+];
+
+const rec = { step: 0, timer: null, pack: null, quietSince: 0 };
+
+function setupRecorder() {
+  $("rec-steps").innerHTML = STEPS.slice(0, 5).map(() => "<i></i>").join("");
+  $("record-open").addEventListener("click", openRecorder);
+  $("rec-cancel").addEventListener("click", closeRecorder);
+  $("rec-next").addEventListener("click", nextStep);
+  $("rec-skip").addEventListener("click", () => goTo(rec.step + 1));
+  $("rec-play").addEventListener("click", () => rec.pack && invoke("preview", { pack: rec.pack.id }));
+  $("rec-mic-settings").addEventListener("click", () => invoke("open_mic_settings"));
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("rec").hidden) closeRecorder();
+  });
+}
+
+function openRecorder() {
+  rec.pack = null;
+  $("rec-name").value = "";
+  $("rec").hidden = false;
+  goTo(0);
+  $("rec-name").focus();
+}
+
+function closeRecorder() {
+  clearInterval(rec.timer);
+  if (rec.step > 0 && rec.step < 5) invoke("record_cancel");
+  $("rec").hidden = true;
+}
+
+function goTo(i) {
+  rec.step = i;
+  const step = STEPS[i] || { id: "error" };
+  for (const el of document.querySelectorAll(".rec-step")) {
+    el.classList.toggle("active", el.dataset.step === step.id);
+  }
+  [...$("rec-steps").children].forEach((d, n) => d.classList.toggle("on", n <= i));
+  const recording = i >= 1 && i <= 4;
+  $("rec-meter-row").hidden = !recording;
+  if (!recording) $("rec-silent").hidden = true;
+  $("rec-skip").hidden = !(i >= 2 && i <= 4);
+  $("rec-play").hidden = step.id !== "done";
+  $("rec-cancel").textContent = step.id === "done" ? "Close" : "Cancel";
+  $("rec-cancel").hidden = step.id === "working";
+  const next = $("rec-next");
+  next.hidden = step.id === "working";
+  next.textContent =
+    step.id === "intro" ? "Start recording" :
+    step.id === "done" ? "Use this pack" :
+    step.id === "error" ? "Try again" :
+    i === 4 ? "Finish" : "Next";
+  if (step.id === "type") setTimeout(() => $("rec-pad").focus(), 50);
+  if (step.id === "working") finishRecording();
+}
+
+async function nextStep() {
+  const id = (STEPS[rec.step] || { id: "error" }).id;
+  if (id === "intro") {
+    try {
+      const device = await invoke("record_start");
+      $("rec-device").textContent = device;
+      $("rec-pad").value = "";
+      rec.quietSince = Date.now();
+      rec.timer = setInterval(pollRecorder, 100);
+      goTo(1);
+    } catch (err) {
+      showError(err);
+    }
+  } else if (id === "done") {
+    save({ pack: rec.pack.id });
+    closeRecorder();
+  } else if (id === "error") {
+    goTo(0);
+  } else {
+    goTo(rec.step + 1);
+  }
+}
+
+async function pollRecorder() {
+  const s = await invoke("record_status");
+  if (!s) return;
+  $("rec-meter").style.width = `${Math.min(100, Math.sqrt(s.level) * 140)}%`;
+  if (s.level > 0.004) rec.quietSince = Date.now();
+  $("rec-silent").hidden = Date.now() - rec.quietSince < 3500;
+  const step = STEPS[rec.step];
+  if (!step || !step.key) return;
+  const n = s[step.key];
+  $("rec-count").textContent = `${Math.min(n, step.target)} / ${step.target}`;
+  if (n >= step.target && !step.reached) {
+    step.reached = true;
+    setTimeout(() => {
+      step.reached = false;
+      if (STEPS[rec.step] === step) goTo(rec.step + 1);
+    }, 500);
+  }
+}
+
+async function finishRecording() {
+  clearInterval(rec.timer);
+  try {
+    const name = $("rec-name").value.trim() || "My keyboard";
+    rec.pack = await invoke("record_finish", { name });
+    const s = rec.pack.summary;
+    $("rec-done-title").textContent = `“${rec.pack.name}” is ready`;
+    $("rec-summary").innerHTML = [
+      ["keys", s.normal], ["modifiers", s.modifier], ["space", s.space],
+      ["enter", s.enter], ["backspace", s.back], ["releases", s.release],
+    ].map(([k, v]) => `<span><b>${v}</b> ${k}</span>`).join("");
+    goTo(6);
+    invoke("preview", { pack: rec.pack.id });
+  } catch (err) {
+    showError(err);
+  }
+}
+
+function showError(err) {
+  $("rec-error").textContent = String(err);
+  goTo(99);
 }
 
 init();

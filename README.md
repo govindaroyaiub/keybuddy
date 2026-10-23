@@ -17,6 +17,15 @@ key keeps its own take, big keys (space, enter, backspace) get bigger sounds,
 release clicks are optional, and stereo follows the key's position.
 Listen offline: `sounds/demo/*.wav`.
 
+## Record your own keyboard
+
+Settings → **Record your keyboard**. Type a sentence, then tap Space, Enter
+and Backspace a few times. KeyBuddy records the mic while the key hook logs
+which key moved, so every hit is labeled exactly (press vs release, big keys).
+It measures the mic's delay from the recording itself, drops overlapping
+hits, and saves a pack you can preview, pick from the tray, or delete.
+Recorded packs live in the app's config folder under `packs/`.
+
 ## Run
 
 ```bash
@@ -31,6 +40,7 @@ Needs Rust and Node. On Linux also install the
 ## Permissions
 
 - **macOS:** System Settings → Privacy & Security → **Input Monitoring** → allow KeyBuddy.
+- **macOS (recording):** Microphone access, asked on first recording.
 - **Windows:** nothing to grant.
 - **Linux:** reads `/dev/input` (works on X11 and Wayland). Add yourself to the
   `input` group: `sudo usermod -aG input $USER`, then log out and back in.
@@ -47,7 +57,8 @@ src-tauri/src/hook/     global key listening (macOS event tap, Windows LL hook, 
 src-tauri/src/keymap.rs native codes -> key position + class
 src-tauri/src/packs.rs  embedded sample packs
 src-tauri/src/audio.rs  low-latency mixer (cpal)
-src-tauri/src/engine.rs settings, stats, playback
+src-tauri/src/engine.rs settings, stats, playback, recorded packs
+src-tauri/src/recorder.rs mic capture + slicing for recorded packs
 ui/                     settings window
 tools/slice.py          recordings -> packs
 ```

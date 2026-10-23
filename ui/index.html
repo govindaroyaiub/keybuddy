@@ -47,6 +47,10 @@
     <section class="panel">
       <h2>Sound</h2>
       <div class="packs" id="packs" role="radiogroup" aria-label="Sound pack"></div>
+      <button class="record-cta" id="record-open">
+        <span class="rec-dot"></span>
+        <span><b>Record your keyboard</b><small>Turn your own switches into a pack.</small></span>
+      </button>
     </section>
 
     <section class="panel">
@@ -100,6 +104,73 @@
   <footer class="foot">
     KeyBuddy keeps key counts only — no letters, no account, nothing leaves this computer.
   </footer>
+
+  <div class="modal" id="rec" hidden>
+    <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="rec-title">
+      <div class="sheet-head">
+        <h3 id="rec-title">Record your keyboard</h3>
+        <div class="steps" id="rec-steps"></div>
+      </div>
+
+      <div class="rec-step" data-step="intro">
+        <p>KeyBuddy listens to your mic while you type, and because it knows which key you pressed, every sound lands in the right place.</p>
+        <ul class="tips">
+          <li>Quiet room. Mic 20–40 cm from the keyboard.</li>
+          <li>Type at a relaxed pace — overlapping keys get skipped.</li>
+          <li>KeyBuddy stays silent while recording.</li>
+        </ul>
+        <label class="field">Pack name<input id="rec-name" maxlength="32" placeholder="My keyboard" /></label>
+      </div>
+
+      <div class="rec-step" data-step="type">
+        <p class="prompt">Type this, then keep going with anything:</p>
+        <p class="sample">Sphinx of black quartz, judge my vow. The quick brown fox jumps over the lazy dog.</p>
+        <textarea id="rec-pad" rows="3" spellcheck="false" autocomplete="off"></textarea>
+      </div>
+
+      <div class="rec-step" data-step="space">
+        <p class="prompt big-prompt">Tap <kbd>Space</kbd> slowly</p>
+      </div>
+      <div class="rec-step" data-step="enter">
+        <p class="prompt big-prompt">Tap <kbd>Enter</kbd> slowly</p>
+      </div>
+      <div class="rec-step" data-step="back">
+        <p class="prompt big-prompt">Tap <kbd>Backspace</kbd> slowly</p>
+      </div>
+
+      <div class="rec-step" data-step="working">
+        <p class="prompt big-prompt">Cutting your recording into takes…</p>
+      </div>
+
+      <div class="rec-step" data-step="done">
+        <p class="prompt big-prompt" id="rec-done-title">Your pack is ready</p>
+        <div class="chips" id="rec-summary"></div>
+      </div>
+
+      <div class="rec-step" data-step="error">
+        <p class="prompt big-prompt">That didn't work</p>
+        <p class="muted" id="rec-error"></p>
+      </div>
+
+      <div class="meter-row" id="rec-meter-row" hidden>
+        <span class="rec-dot live"></span>
+        <div class="meter"><div class="meter-fill" id="rec-meter"></div></div>
+        <span class="count" id="rec-count"></span>
+      </div>
+      <div class="warn" id="rec-silent" hidden>
+        Not hearing anything from <b id="rec-device">your mic</b>.
+        <button class="link" id="rec-mic-settings">Check microphone access</button>
+      </div>
+
+      <div class="sheet-foot">
+        <button class="btn" id="rec-cancel">Cancel</button>
+        <span class="spacer"></span>
+        <button class="btn" id="rec-skip" hidden>Skip</button>
+        <button class="btn" id="rec-play" hidden>Play it</button>
+        <button class="btn primary" id="rec-next">Start recording</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

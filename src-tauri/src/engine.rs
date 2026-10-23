@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use crate::audio::Audio;
 use crate::keymap::{self, KeyClass};
 use crate::packs::{self, Bank};
+use crate::recorder::{self, Recorder, Summary};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -116,6 +117,17 @@ pub struct Engine {
     audio: Audio,
     rng: Mutex<Rng>,
     dir: PathBuf,
+    custom: RwLock<Vec<CustomPack>>,
+    recorder: Mutex<Option<Arc<Recorder>>>,
+}
+
+/// A pack the user recorded from their own keyboard.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct CustomPack {
+    pub id: String,
+    pub name: String,
+    pub created: u64,
+    pub summary: Summary,
 }
 
 impl Engine {
@@ -125,16 +137,22 @@ impl Engine {
         let stats: Stats = load(&dir.join("stats.json"));
         let seed = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
         let engine = Arc::new(Self {
-            bank: RwLock::new(Arc::new(packs::build(&settings.pack))),
+            bank: RwLock::new(Arc::new(packs::empty())),
             settings: RwLock::new(settings),
             stats: Mutex::new(stats),
             banks: Mutex::new(HashMap::new()),
             audio: Audio::start(),
             rng: Mutex::new(Rng(seed | 1)),
+            custom: RwLock::new(load(&dir.join("packs").join("index.json"))),
+            recorder: Mutex::new(None),
             dir,
         });
-        let pack = engine.settings.read().pack.clone();
-        engine.banks.lock().insert(pack, engine.bank.read().clone());
+        let mut pack = engine.settings.read().pack.clone();
+        if !packs::is_builtin(&pack) && !engine.custom.read().iter().any(|c| c.id == pack) {
+            pack = packs::DEFAULT_PACK.into();
+            engine.settings.write().pack = pack.clone();
+        }
+        *engine.bank.write() = engine.bank_for(&pack);
         engine
     }
 
@@ -146,13 +164,20 @@ impl Engine {
         if let Some(b) = self.banks.lock().get(pack) {
             return b.clone();
         }
-        let b = Arc::new(packs::build(pack));
+        let b = Arc::new(if packs::is_builtin(pack) {
+            packs::build(pack)
+        } else {
+            std::fs::read(self.pack_path(pack))
+                .ok()
+                .and_then(|d| packs::parse(&d))
+                .unwrap_or_else(packs::empty)
+        });
         self.banks.lock().insert(pack.to_string(), b.clone());
         b
     }
 
     pub fn apply(&self, mut next: Settings) {
-        if !packs::PACKS.iter().any(|p| p.id == next.pack) {
+        if !packs::is_builtin(&next.pack) && !self.custom.read().iter().any(|c| c.id == next.pack) {
             next.pack = packs::DEFAULT_PACK.into();
         }
         next.volume = next.volume.clamp(0.0, 1.0);
@@ -164,6 +189,10 @@ impl Engine {
     }
 
     pub fn on_key(&self, code: u16, down: bool) {
+        if let Some(rec) = self.recorder.lock().as_ref() {
+            // Stay silent while recording so the mic only hears the keyboard.
+            return rec.on_key(code, down);
+        }
         let info = keymap::info(code);
         if down {
             self.stats.lock().press(info.class == KeyClass::Normal || info.class == KeyClass::Space);
@@ -269,5 +298,89 @@ impl Rng {
     }
     pub fn range(&mut self, a: f32, b: f32) -> f32 {
         a + (b - a) * ((self.next() >> 40) as f32 / (1u64 << 24) as f32)
+    }
+}
+
+impl Engine {
+    fn pack_path(&self, id: &str) -> PathBuf {
+        self.dir.join("packs").join(format!("{id}.kbp"))
+    }
+
+    /// Built-in packs followed by the user's recordings, for the UI and tray.
+    pub fn pack_list(&self) -> Vec<serde_json::Value> {
+        let mut out: Vec<_> = packs::PACKS
+            .iter()
+            .map(|p| serde_json::json!({ "id": p.id, "name": p.name, "kind": p.kind, "blurb": p.blurb, "custom": false }))
+            .collect();
+        for c in self.custom.read().iter() {
+            let s = &c.summary;
+            out.push(serde_json::json!({
+                "id": c.id,
+                "name": c.name,
+                "kind": "Recorded",
+                "blurb": format!("Your board · {} takes", s.normal + s.modifier + s.space + s.enter + s.back),
+                "custom": true,
+            }));
+        }
+        out
+    }
+
+    pub fn record_start(&self) -> Result<String, String> {
+        let rec = Recorder::start()?;
+        let device = rec.device.clone();
+        *self.recorder.lock() = Some(rec);
+        Ok(device)
+    }
+
+    pub fn record_status(&self) -> Option<recorder::Status> {
+        self.recorder.lock().as_ref().map(|r| r.status())
+    }
+
+    pub fn record_cancel(&self) {
+        if let Some(r) = self.recorder.lock().take() {
+            r.stop();
+        }
+    }
+
+    pub fn record_finish(&self, name: String) -> Result<CustomPack, String> {
+        let rec = self.recorder.lock().take().ok_or("Not recording")?;
+        let (entries, summary) = rec.finish()?;
+        let created = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+        let name = name.trim();
+        let pack = CustomPack {
+            id: format!("rec-{created}"),
+            name: if name.is_empty() { "My keyboard".into() } else { name.chars().take(32).collect() },
+            created,
+            summary,
+        };
+        let _ = std::fs::create_dir_all(self.dir.join("packs"));
+        std::fs::write(self.pack_path(&pack.id), packs::encode(&entries)).map_err(|e| e.to_string())?;
+        self.custom.write().push(pack.clone());
+        self.save_custom();
+        Ok(pack)
+    }
+
+    pub fn delete_pack(&self, id: &str) {
+        let removed = {
+            let mut c = self.custom.write();
+            let before = c.len();
+            c.retain(|p| p.id != id);
+            before != c.len()
+        };
+        if !removed {
+            return; // never touch files for ids we don't own
+        }
+        let _ = std::fs::remove_file(self.pack_path(id));
+        self.banks.lock().remove(id);
+        self.save_custom();
+        if self.settings.read().pack == id {
+            let mut s = self.settings.read().clone();
+            s.pack = packs::DEFAULT_PACK.into();
+            self.apply(s);
+        }
+    }
+
+    fn save_custom(&self) {
+        save(&self.dir.join("packs").join("index.json"), &*self.custom.read());
     }
 }

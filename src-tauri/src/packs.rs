@@ -40,13 +40,36 @@ fn data(id: &str) -> &'static [u8] {
     }
 }
 
+/// (kind: 0 press / 1 release, class, mono samples at 48 kHz)
+pub type Entry = (u8, u8, Vec<f32>);
+
+pub fn is_builtin(id: &str) -> bool {
+    PACKS.iter().any(|p| p.id == id)
+}
+
 pub fn build(id: &str) -> Bank {
-    parse(data(id)).unwrap_or_else(|| Bank { press: Default::default(), release: Default::default() })
+    parse(data(id)).unwrap_or_else(empty)
+}
+
+pub fn empty() -> Bank {
+    Bank { press: Default::default(), release: Default::default() }
+}
+
+pub fn encode(entries: &[Entry]) -> Vec<u8> {
+    let mut out = b"KBP1".to_vec();
+    for (kind, class, samples) in entries {
+        out.extend([*kind, *class]);
+        out.extend((samples.len() as u32).to_le_bytes());
+        for s in samples {
+            out.extend(((s.clamp(-1.0, 1.0) * 32767.0) as i16).to_le_bytes());
+        }
+    }
+    out
 }
 
 /// b"KBP1", then entries of: u8 kind (0 press, 1 release), u8 class,
 /// u32 LE sample count, i16 LE samples.
-fn parse(mut b: &[u8]) -> Option<Bank> {
+pub fn parse(mut b: &[u8]) -> Option<Bank> {
     b = b.strip_prefix(b"KBP1")?;
     let mut bank = Bank { press: Default::default(), release: Default::default() };
     while b.len() >= 6 {
@@ -67,6 +90,15 @@ fn parse(mut b: &[u8]) -> Option<Bank> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn encode_roundtrips() {
+        let entries = vec![(0u8, 2u8, vec![0.5f32; 200]), (1, 0, vec![-0.25; 150])];
+        let bank = parse(&encode(&entries)).unwrap();
+        assert_eq!(bank.press[2].len(), 1);
+        assert_eq!(bank.release[0][0].len(), 150);
+        assert!((bank.press[2][0][10] - 0.5).abs() < 1e-3);
+    }
 
     #[test]
     fn every_pack_has_every_class() {
