@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KeyBuddy: mechanical keyboard sounds for every key</title>
+  <meta name="description" content="Tired of the same boring typing sound? KeyBuddy gives every key a real mechanical switch sound, in every app, on macOS, Windows and Linux." />
+  <link rel="icon" href="favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script>
+    // Apply the saved theme before paint to avoid a flash.
+    try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch {}
+  </script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="nav">
+    <a class="logo" href="#top">
+      <img src="icon.png" alt="" width="32" height="32" />
+      <span>KeyBuddy</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#sounds">Sounds</a>
+      <a href="#playground">Playground</a>
+      <a href="#download">Download</a>
+    </nav>
+    <button class="theme-toggle" id="theme" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>
+    </button>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">For people who love switches</p>
+        <h1>Tired of hearing the same <span class="strike">boring</span> sound while typing?</h1>
+        <p class="lede">KeyBuddy gives every key you press a real mechanical switch sound, in every app. Four sounds made just for you, or record your own board.</p>
+        <div class="cta-row">
+          <a class="btn primary big" id="hero-download" href="#download">
+            <span class="os-icon" id="hero-os-icon"></span>
+            <span id="hero-download-label">Download KeyBuddy</span>
+          </a>
+          <a class="btn ghost big" href="#playground">Try it here first</a>
+        </div>
+        <p class="fine" id="hero-note">Free · macOS, Windows &amp; Linux</p>
+      </div>
+
+      <div class="hero-art" aria-hidden="true">
+        <div class="stage">
+          <div class="cap cap-a"><span>K</span></div>
+          <div class="cap cap-b"><span>B</span></div>
+          <div class="cap cap-c"><span>⏎</span></div>
+          <div class="buddy" id="hero-buddy">
+            <svg viewBox="0 0 120 120">
+              <rect class="b-shadow" x="10" y="22" width="100" height="92" rx="22" />
+              <g class="b-top">
+                <rect class="b-cap" x="10" y="12" width="100" height="90" rx="22" />
+                <rect class="b-shine" x="20" y="18" width="80" height="70" rx="16" />
+                <circle class="b-eye" cx="45" cy="50" r="6" />
+                <circle class="b-eye" cx="75" cy="50" r="6" />
+                <path class="b-mouth" d="M48 66 Q60 76 72 66" />
+                <circle class="b-cheek" cx="34" cy="64" r="5" />
+                <circle class="b-cheek" cx="86" cy="64" r="5" />
+              </g>
+            </svg>
+          </div>
+        </div>
+        <p class="hint-bubble">Go on, press any key.</p>
+      </div>
+    </section>
+
+    <section class="sounds" id="sounds">
+      <div class="section-head">
+        <p class="eyebrow">4 sounds, made for you</p>
+        <h2>Pick your poison.</h2>
+        <p>Cut from real switch recordings, one key at a time. Big keys sound big, releases click back, and stereo follows where the key sits.</p>
+      </div>
+      <div class="pack-grid" id="pack-grid"></div>
+    </section>
+
+    <section class="playground" id="playground">
+      <div class="section-head">
+        <p class="eyebrow">Playground</p>
+        <h2>Take them for a test drive.</h2>
+        <p>Pick a sound, click the text and type. Or just type anywhere on this page.</p>
+      </div>
+
+      <div class="pg">
+        <div class="pg-bar">
+          <div class="chips" id="pg-chips" role="radiogroup" aria-label="Sound"></div>
+          <div class="pg-stats">
+            <span><b id="pg-wpm">0</b> wpm</span>
+            <span><b id="pg-acc">100</b>% accuracy</span>
+            <span><b id="pg-time">0.0</b>s</span>
+          </div>
+        </div>
+        <div class="passage" id="passage" tabindex="0" aria-label="Typing test. Click here and start typing."></div>
+        <div class="pg-foot">
+          <span class="muted" id="pg-hint">Mistakes show in red. Backspace to fix them.</span>
+          <button class="btn ghost small" id="pg-new">New text</button>
+        </div>
+        <div class="keyboard" id="keyboard" aria-label="Keyboard. Click keys to hear them."></div>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="section-head">
+        <p class="eyebrow">Why KeyBuddy</p>
+        <h2>Small app. Big thock.</h2>
+      </div>
+      <div class="feature-grid">
+        <article>
+          <h3>Every app</h3>
+          <p>Docs, code, chat, email. KeyBuddy lives in your menu bar or system tray and plays along everywhere.</p>
+        </article>
+        <article>
+          <h3>Record your own board</h3>
+          <p>Type a sentence near your mic. KeyBuddy knows which key you pressed, so every sound lands on the right key.</p>
+        </article>
+        <article>
+          <h3>Sounds like a real board</h3>
+          <p>Every key keeps its own take, space and enter sound bigger, and releases click back like real switches.</p>
+        </article>
+        <article>
+          <h3>Stereo by key position</h3>
+          <p>Left-hand keys come from the left, right-hand keys from the right. Put on headphones and listen.</p>
+        </article>
+        <article>
+          <h3>Private by design</h3>
+          <p>It only knows which key moved, never what you typed. No account, no analytics, nothing leaves your computer.</p>
+        </article>
+        <article>
+          <h3>Light as a feather</h3>
+          <p>A small native app with a tiny audio mixer. Sounds start within a few milliseconds of your keypress.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="download" id="download">
+      <div class="section-head">
+        <p class="eyebrow">Download</p>
+        <h2 id="dl-title">Get KeyBuddy for your computer.</h2>
+        <p id="dl-sub">Free, and it runs on all three desktop systems.</p>
+      </div>
+      <div class="dl-grid" id="dl-grid"></div>
+      <p class="fine center" id="dl-mobile" hidden>KeyBuddy is a desktop app. Open this page on your Mac or PC to download it. The Playground above works right here.</p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="foot-inner">
+      <span class="logo small"><img src="icon.png" alt="" width="22" height="22" />KeyBuddy</span>
+      <span class="muted">Sounds cut from <a href="https://freesound.org" rel="noopener">CC0 Freesound recordings</a>. Thank you to everyone who shared them.</span>
+    </div>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>

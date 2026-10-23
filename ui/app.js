@@ -76,7 +76,25 @@ const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
 const PLAY_ICON = '<svg viewBox="0 0 12 12"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg>';
 
+function buildChips(packs) {
+  const wrap = $("pack-chips");
+  wrap.innerHTML = "";
+  for (const p of packs) {
+    const c = document.createElement("button");
+    c.className = "chip";
+    c.setAttribute("role", "radio");
+    c.dataset.id = p.id;
+    c.textContent = p.name;
+    c.title = `${p.kind} · ${p.blurb}`;
+    // keep focus in the typing test so you can switch mid-sentence
+    c.addEventListener("mousedown", (e) => e.preventDefault());
+    c.addEventListener("click", () => save({ pack: p.id }));
+    wrap.appendChild(c);
+  }
+}
+
 function buildPacks(packs) {
+  buildChips(packs);
   const wrap = $("packs");
   wrap.innerHTML = "";
   for (const p of packs) {
@@ -126,9 +144,10 @@ function render() {
   const vol = Math.round(settings.volume * 100);
   $("volume").value = vol;
   $("volume-out").textContent = `${vol}%`;
-  for (const el of document.querySelectorAll(".pack")) {
+  for (const el of document.querySelectorAll(".pack, .chip")) {
     el.setAttribute("aria-checked", String(el.dataset.id === settings.pack));
   }
+  if (pr.pack !== null && pr.pack !== settings.pack) newPassage();
 }
 
 function save(patch) {
@@ -144,6 +163,7 @@ function showPermission(state) {
     $("perm-text").textContent =
       "Your user needs read access to keyboards: run `sudo usermod -aG input $USER`, then log out and back in.";
     $("perm-btn").hidden = true;
+    $("perm-restart").hidden = true;
   }
 }
 
@@ -157,7 +177,9 @@ function mood(s) {
 
 async function pollStats() {
   const s = await invoke("get_stats");
-  $("wpm").textContent = s.wpm;
+  // While you're in the typing test, show its live speed: it's what you're watching.
+  const testing = pr.start && !pr.end;
+  $("wpm").textContent = testing ? practiceNumbers().wpm : s.wpm;
   $("best-today").textContent = s.best_today;
   $("best-ever").textContent = s.best_ever;
   $("today").textContent = s.today.toLocaleString();
@@ -187,6 +209,7 @@ async function init() {
     }
   });
   $("perm-btn").addEventListener("click", () => invoke("open_permission_settings"));
+  $("perm-restart").addEventListener("click", () => invoke("restart"));
 
   await listen("packs", (e) => {
     buildPacks(e.payload);
@@ -203,6 +226,8 @@ async function init() {
   });
 
   setupRecorder();
+  setupTabs();
+  setupPractice();
 
   setInterval(pollStats, 500);
   pollStats();
@@ -210,6 +235,149 @@ async function init() {
   setInterval(async () => {
     if (!$("perm").hidden) showPermission(await invoke("permission"));
   }, 2000);
+}
+
+// ---------- tabs ----------
+
+function setupTabs() {
+  const tabs = [...document.querySelectorAll(".tabs [role=tab]")];
+  const show = (name) => {
+    for (const t of tabs) t.setAttribute("aria-selected", String(t.dataset.tab === name));
+    for (const p of document.querySelectorAll(".tab-panel")) p.hidden = p.dataset.panel !== name;
+    try { localStorage.setItem("tab", name); } catch {}
+    if (name === "practice") $("passage").focus();
+  };
+  for (const t of tabs) t.addEventListener("click", () => show(t.dataset.tab));
+  let saved = "sounds";
+  try { saved = localStorage.getItem("tab") || "sounds"; } catch {}
+  show(saved);
+}
+
+// ---------- practice ----------
+
+// Typing-test texts, matched to the sound you're hearing.
+const PASSAGES = {
+  thocky: [
+    "Thock is the deep, round sound of a lubed linear landing on a foam-filled board. Low, soft, and very satisfying.",
+    "Linear switches have no bump and no click. The key travels straight down, so its only voice is the bottom-out.",
+    "Heavy springs, thick caps, and a dampened case push the sound lower until every press lands like a soft drum.",
+  ],
+  clacky: [
+    "Clack is bright and sharp: hard plastic caps striking a stiff plate, with nothing there to soften the blow.",
+    "A hollow case makes every key ring a little, so fast typing turns into a crisp, rattling clatter.",
+    "Thin ABS keycaps sound higher than thick ones, which is why older boards have that classic clacky voice.",
+  ],
+  clicky: [
+    "Clicky switches hide a little jacket that snaps as you press, so every key announces itself out loud.",
+    "Blue switches click on the way down and again on the way up. Everyone nearby hears every word you type.",
+    "The click arrives just as the key registers, telling your finger it can let go and move on to the next one.",
+  ],
+  tactile: [
+    "A tactile switch has a small bump halfway down, so you feel the key register without a loud click.",
+    "Browns are the quiet middle ground: a gentle bump, a muted landing, and nothing that wakes the room.",
+    "Good tactiles let you type lightly, stopping at the bump instead of slamming every key to the bottom.",
+  ],
+  custom: [
+    "This is the sound of your own keyboard, recorded on your desk and cut into takes one key at a time.",
+    "Every switch on your board sounds a little different, and now each one plays back exactly as you type.",
+    "Same keys, same switches, same desk. KeyBuddy just makes sure you hear them in every app you use.",
+  ],
+};
+
+const passagesFor = (pack) => PASSAGES[pack] || PASSAGES.custom;
+
+const pr = { pack: null, text: "", typed: "", strokes: 0, errors: 0, start: 0, end: 0, idx: -1, timer: null };
+
+function setupPractice() {
+  const el = $("passage");
+  el.addEventListener("keydown", onPracticeKey);
+  $("p-new").addEventListener("click", () => {
+    newPassage();
+    el.focus();
+  });
+  newPassage();
+}
+
+function newPassage() {
+  const pack = settings ? settings.pack : "thocky";
+  const list = passagesFor(pack);
+  let i;
+  do i = Math.floor(Math.random() * list.length); while (pack === pr.pack && i === pr.idx && list.length > 1);
+  Object.assign(pr, { pack, idx: i, text: list[i], typed: "", strokes: 0, errors: 0, start: 0, end: 0 });
+  clearInterval(pr.timer);
+  $("passage").classList.remove("done");
+  $("p-hint").className = "hint";
+  $("p-hint").textContent = "Click the text and start typing. Mistakes show in red; backspace to fix them.";
+  renderPassage();
+  updatePracticeStats();
+}
+
+function onPracticeKey(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey || pr.end) return;
+  if (e.key === "Backspace") {
+    e.preventDefault();
+    pr.typed = pr.typed.slice(0, -1);
+  } else if (e.key.length === 1) {
+    e.preventDefault();
+    if (!pr.start) {
+      pr.start = performance.now();
+      pr.timer = setInterval(updatePracticeStats, 100);
+    }
+    const expected = pr.text[pr.typed.length];
+    pr.strokes += 1;
+    if (e.key !== expected) pr.errors += 1;
+    pr.typed += e.key;
+    if (pr.typed.length >= pr.text.length) finishPassage();
+  } else {
+    return;
+  }
+  renderPassage();
+  updatePracticeStats();
+}
+
+function renderPassage() {
+  const html = [];
+  for (let i = 0; i < pr.text.length; i++) {
+    const c = pr.text[i];
+    let cls = "";
+    if (i < pr.typed.length) cls = pr.typed[i] === c ? "ok" : "bad";
+    else if (i === pr.typed.length) cls = "cur";
+    html.push(`<span class="${cls}">${c === " " ? "&nbsp;" : esc(c)}</span>`);
+  }
+  // let long lines wrap at spaces
+  $("passage").innerHTML = html.join("").replaceAll("&nbsp;</span>", "&nbsp;</span><wbr>");
+}
+
+function practiceNumbers() {
+  const now = pr.end || performance.now();
+  const secs = pr.start ? (now - pr.start) / 1000 : 0;
+  let correct = 0;
+  for (let i = 0; i < pr.typed.length; i++) if (pr.typed[i] === pr.text[i]) correct++;
+  const wpm = secs > 1 ? Math.round(correct / 5 / (secs / 60)) : 0;
+  const acc = pr.strokes ? Math.round(((pr.strokes - pr.errors) / pr.strokes) * 100) : 100;
+  return { secs, wpm, acc };
+}
+
+function updatePracticeStats() {
+  const { secs, wpm, acc } = practiceNumbers();
+  $("p-wpm").textContent = wpm;
+  $("p-acc").textContent = acc;
+  $("p-time").textContent = secs.toFixed(1);
+}
+
+function finishPassage() {
+  pr.end = performance.now();
+  clearInterval(pr.timer);
+  const { wpm, acc } = practiceNumbers();
+  let best = 0;
+  try { best = Number(localStorage.getItem("practiceBest") || 0); } catch {}
+  const record = wpm > best;
+  if (record) try { localStorage.setItem("practiceBest", String(wpm)); } catch {}
+  $("passage").classList.add("done");
+  $("p-hint").className = "hint result";
+  $("p-hint").textContent = record
+    ? `New personal best: ${wpm} wpm at ${acc}% accuracy!`
+    : `${wpm} wpm at ${acc}% accuracy. Your best is ${best} wpm.`;
 }
 
 // ---------- record your keyboard ----------

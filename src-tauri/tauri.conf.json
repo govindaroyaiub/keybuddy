@@ -13,7 +13,7 @@
         "label": "main",
         "title": "KeyBuddy",
         "width": 880,
-        "height": 820,
+        "height": 780,
         "minWidth": 720,
         "minHeight": 600,
         "resizable": true,

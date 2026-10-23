@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::Duration;
 
@@ -22,7 +23,20 @@ extern "C" {
 
 const VK_CAPS_LOCK: u16 = 0x39;
 
+/// True once the event tap is actually running. This is the ground truth:
+/// macOS's own access check can disagree with the switch in System Settings
+/// (e.g. the switch belongs to an older, differently signed build).
+static TAP_LIVE: AtomicBool = AtomicBool::new(false);
+static TAP_TRIED: AtomicBool = AtomicBool::new(false);
+
 pub fn permission() -> Permission {
+    if TAP_LIVE.load(Ordering::Relaxed) {
+        return Permission::Granted;
+    }
+    if TAP_TRIED.load(Ordering::Relaxed) {
+        // We tried and macOS refused, whatever the settings switch shows.
+        return Permission::Denied;
+    }
     match unsafe { IOHIDCheckAccess(K_IOHID_REQUEST_TYPE_LISTEN_EVENT) } {
         0 => Permission::Granted,
         1 => Permission::Denied,
@@ -41,7 +55,9 @@ pub fn start(handler: Handler) {
                     unsafe { IOHIDRequestAccess(K_IOHID_REQUEST_TYPE_LISTEN_EVENT) };
                     asked = true;
                 }
-                if run_tap(&handler) {
+                let ran = run_tap(&handler);
+                TAP_TRIED.store(true, Ordering::Relaxed);
+                if ran {
                     return;
                 }
                 thread::sleep(Duration::from_secs(2));
@@ -86,6 +102,8 @@ fn run_tap(handler: &Handler) -> bool {
     let run_loop = CFRunLoop::get_current();
     unsafe { run_loop.add_source(&source, kCFRunLoopCommonModes) };
     tap.enable();
+    TAP_LIVE.store(true, Ordering::Relaxed);
     CFRunLoop::run_current();
+    TAP_LIVE.store(false, Ordering::Relaxed);
     true
 }

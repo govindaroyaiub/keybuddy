@@ -35,22 +35,27 @@
     </label>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" id="tab-sounds" data-tab="sounds" aria-selected="true">Sounds</button>
+    <button role="tab" id="tab-practice" data-tab="practice" aria-selected="false">Playground</button>
+  </nav>
+
   <div class="banner" id="perm" hidden>
     <div>
       <strong>KeyBuddy can't hear your keyboard yet.</strong>
-      <span id="perm-text">Allow it under Privacy &amp; Security → Input Monitoring. It only sees which key moved, never what you typed.</span>
+      <span id="perm-text">Allow it under Privacy &amp; Security → Input Monitoring. It only sees which key moved, never what you typed.
+        Already on? Select KeyBuddy, remove it with <b>–</b>, add it again, then restart.</span>
     </div>
-    <button class="btn" id="perm-btn">Open Settings</button>
+    <div class="banner-actions">
+      <button class="btn" id="perm-btn">Open Settings</button>
+      <button class="btn" id="perm-restart">Restart KeyBuddy</button>
+    </div>
   </div>
 
-  <main class="grid">
+  <main class="grid tab-panel" data-panel="sounds" role="tabpanel" aria-labelledby="tab-sounds">
     <section class="panel">
       <h2>Sound</h2>
       <div class="packs" id="packs" role="radiogroup" aria-label="Sound pack"></div>
-      <button class="record-cta" id="record-open">
-        <span class="rec-dot"></span>
-        <span><b>Record your keyboard</b><small>Turn your own switches into a pack.</small></span>
-      </button>
     </section>
 
     <section class="panel">
@@ -83,19 +88,42 @@
         </span>
         <span class="switch"><input type="checkbox" id="autostart" /><span class="track"><span class="thumb"></span></span></span>
       </label>
+    </section>
+  </main>
 
-      <div class="stats">
-        <div><b id="wpm">0</b><span>WPM now</span></div>
-        <div><b id="best-today">0</b><span>Best today</span></div>
-        <div><b id="best-ever">0</b><span>Best ever</span></div>
-        <div><b id="today">0</b><span>Keys today</span></div>
+  <main class="practice tab-panel" data-panel="practice" role="tabpanel" aria-labelledby="tab-practice" hidden>
+    <div class="toolbar">
+      <div class="chips-row" id="pack-chips" role="radiogroup" aria-label="Sound while typing"></div>
+      <button class="btn rec-btn" id="record-open"><span class="rec-dot small"></span>Record your keyboard</button>
+    </div>
+
+    <div class="stats">
+      <div><b id="wpm">0</b><span>WPM now</span></div>
+      <div><b id="best-today">0</b><span>Best today</span></div>
+      <div><b id="best-ever">0</b><span>Best ever</span></div>
+      <div><b id="today">0</b><span>Keys today</span></div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Typing test</h2>
+        <div class="practice-stats">
+          <span><b id="p-wpm">0</b> wpm</span>
+          <span><b id="p-acc">100</b>% accuracy</span>
+          <span><b id="p-time">0.0</b>s</span>
+        </div>
+      </div>
+      <div class="passage" id="passage" tabindex="0" aria-label="Typing test. Click here and start typing."></div>
+      <div class="practice-foot">
+        <span class="hint" id="p-hint">Click the text and start typing. Mistakes show in red; backspace to fix them.</span>
+        <button class="btn" id="p-new">New text</button>
       </div>
     </section>
 
-    <section class="panel wide">
+    <section class="panel">
       <div class="panel-head">
-        <h2>Try it</h2>
-        <span class="hint">Type anywhere, or click a key.</span>
+        <h2>Keyboard</h2>
+        <span class="hint">Lights up as you type anywhere. Click a key to hear it.</span>
       </div>
       <div class="keyboard" id="keyboard"></div>
     </section>

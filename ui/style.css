@@ -88,6 +88,7 @@ h2 { margin: 0 0 12px; font-size: 12px; font-weight: 600; text-transform: upperc
 .banner strong { display: block; margin-bottom: 2px; }
 .banner span { color: var(--muted); }
 .banner[hidden] { display: none; }
+.banner-actions { display: flex; flex-direction: column; gap: 6px; }
 
 .btn {
   font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap;
@@ -142,16 +143,16 @@ output { width: 38px; text-align: right; font-variant-numeric: tabular-nums; col
 input[type="range"] { flex: 1; accent-color: var(--accent); }
 
 /* stats */
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-.stats div { background: var(--bg); border-radius: 10px; padding: 10px 8px; text-align: center; }
-.stats b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stats div { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px; text-align: center; display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+.stats b { font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .stats span { font-size: 11px; color: var(--muted); }
 
 /* keyboard */
 .keyboard { display: flex; flex-direction: column; gap: 5px; }
 .krow { display: flex; gap: 5px; }
 .key {
-  flex: var(--w, 1) 1 0; height: 34px; min-width: 0;
+  flex: var(--w, 1) 1 0; height: 30px; min-width: 0;
   border-radius: 7px; border: 1px solid var(--key-edge);
   background: var(--key); box-shadow: 0 3px 0 var(--key-edge);
   color: var(--muted); font-size: 11px; font: 600 11px/1 inherit; cursor: pointer;
@@ -229,3 +230,42 @@ kbd {
 .sheet-foot { display: flex; gap: 8px; align-items: center; }
 .spacer { flex: 1; }
 .btn[hidden] { display: none; }
+
+/* tabs */
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--line); border-radius: 10px; align-self: flex-start; }
+.tabs button {
+  font: inherit; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer;
+  border: 0; background: transparent; padding: 6px 16px; border-radius: 7px;
+}
+.tabs button[aria-selected="true"] { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.tab-panel[hidden] { display: none; }
+
+/* practice */
+.practice { display: flex; flex-direction: column; gap: 12px; }
+.practice-stats { display: flex; gap: 16px; color: var(--muted); font-size: 13px; }
+.practice-stats b { color: var(--ink); font-size: 16px; font-variant-numeric: tabular-nums; }
+.passage {
+  font: 18px/1.6 ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  color: var(--muted); padding: 14px 16px; border-radius: 10px; background: var(--bg);
+  border: 1.5px solid transparent; outline: none; cursor: text; min-height: 84px; word-break: break-word;
+}
+.passage:focus { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.passage .ok { color: var(--ink); }
+.passage .bad { color: #e5484d; background: color-mix(in srgb, #e5484d 15%, transparent); border-radius: 3px; }
+.passage .cur { box-shadow: inset 2px 0 0 var(--accent); }
+.passage:not(:focus) .cur { box-shadow: none; }
+.passage.done { color: var(--ink); }
+.practice-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 10px; }
+.result { color: var(--accent); font-weight: 600; }
+
+/* playground toolbar */
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.chips-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--ink);
+  padding: 6px 12px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--panel);
+}
+.chip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.chip[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.rec-btn { display: inline-flex; align-items: center; gap: 8px; }
+.rec-dot.small { width: 9px; height: 9px; margin: 0; box-shadow: none; }

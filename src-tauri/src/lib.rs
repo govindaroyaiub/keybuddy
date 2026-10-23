@@ -231,6 +231,12 @@ fn delete_pack(app: AppHandle, engine: State<Arc<Engine>>, id: String) {
 }
 
 #[tauri::command]
+fn restart(app: AppHandle, engine: State<Arc<Engine>>) {
+    engine.save_stats();
+    app.restart();
+}
+
+#[tauri::command]
 fn open_mic_settings() {
     #[cfg(target_os = "macos")]
     let _ = std::process::Command::new("open")
@@ -257,7 +263,8 @@ pub fn run() {
             record_cancel,
             record_finish,
             delete_pack,
-            open_mic_settings
+            open_mic_settings,
+            restart
         ])
         .setup(|app| {
             #[cfg(target_os = "macos")]
