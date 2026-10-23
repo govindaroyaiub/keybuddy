@@ -37,6 +37,17 @@ npm run build    # installers in src-tauri/target/release/bundle
 Needs Rust and Node. On Linux also install the
 [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
+## Release
+
+Installers are built by GitHub Actions ([release.yml](.github/workflows/release.yml))
+for macOS (Apple Silicon + Intel), Windows and Linux:
+
+1. Bump `version` in `src-tauri/tauri.conf.json` (and `VERSION` in `site/main.js`).
+2. `git tag v0.1.0 && git push origin v0.1.0`
+
+The website's download buttons point at `releases/latest/download/…`, so they
+work as soon as the release is published.
+
 ## Permissions
 
 - **macOS:** System Settings → Privacy & Security → **Input Monitoring** → allow KeyBuddy.

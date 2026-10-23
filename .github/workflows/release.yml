@@ -1,0 +1,92 @@
+# Builds KeyBuddy installers for macOS (Apple Silicon + Intel), Windows and
+# Linux, and publishes them to a GitHub Release.
+#
+# Release: bump "version" in src-tauri/tauri.conf.json, then
+#   git tag v0.1.0 && git push origin v0.1.0
+# The website links to releases/latest/download/<file>, so file names must
+# keep Tauri's defaults (KeyBuddy_<version>_<arch>.<ext>).
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles app,dmg
+          - name: macOS (Intel)
+            os: macos-latest
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles app,dmg
+          - name: Windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            args: --bundles nsis,msi
+          - name: Linux
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            args: --bundles appimage,deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            librsvg2-dev patchelf libasound2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - run: npm ci
+
+      - name: Tests
+        if: runner.os != 'macOS' || matrix.target == 'aarch64-apple-darwin'
+        working-directory: src-tauri
+        run: cargo test --lib
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: KeyBuddy v__VERSION__
+          releaseBody: |
+            Download the installer for your computer below, or grab it from the website.
+
+            **macOS:** the app isn't notarized yet. The first time, right-click KeyBuddy → Open, or allow it under System Settings → Privacy & Security. Then allow Input Monitoring.
+            **Windows:** SmartScreen may warn about an unknown publisher. Click More info → Run anyway.
+            **Linux:** add yourself to the `input` group (`sudo usermod -aG input $USER`) and log out and back in.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
