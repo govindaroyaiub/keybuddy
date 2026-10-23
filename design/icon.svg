@@ -1,23 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFB86B"/>
-      <stop offset="1" stop-color="#FF7A45"/>
-    </linearGradient>
-    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#FFFDF8"/>
-      <stop offset="1" stop-color="#F1E7DA"/>
-    </linearGradient>
-  </defs>
-  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
-  <rect x="212" y="250" width="600" height="560" rx="110" fill="#C9542A" opacity="0.55"/>
-  <rect x="212" y="210" width="600" height="540" rx="110" fill="url(#cap)"/>
-  <rect x="272" y="250" width="480" height="420" rx="80" fill="#FFFFFF" opacity="0.6"/>
-  <circle cx="420" cy="440" r="38" fill="#3A2A22"/>
-  <circle cx="604" cy="440" r="38" fill="#3A2A22"/>
-  <circle cx="434" cy="426" r="12" fill="#FFFFFF"/>
-  <circle cx="618" cy="426" r="12" fill="#FFFFFF"/>
-  <path d="M440 540 Q512 600 584 540" stroke="#3A2A22" stroke-width="26" fill="none" stroke-linecap="round"/>
-  <circle cx="352" cy="532" r="30" fill="#FF8E6E" opacity="0.6"/>
-  <circle cx="672" cy="532" r="30" fill="#FF8E6E" opacity="0.6"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 3 120 120" width="1024" height="1024">
+  <!-- Same keycap buddy as the website hero and the app header. -->
+  <rect x="10" y="22" width="100" height="92" rx="22" fill="#c9542a"/>
+  <rect x="10" y="12" width="100" height="90" rx="22" fill="#fff8ef"/>
+  <rect x="20" y="18" width="80" height="70" rx="16" fill="#ffffff" opacity="0.7"/>
+  <circle cx="45" cy="50" r="6" fill="#3a2a22"/>
+  <circle cx="75" cy="50" r="6" fill="#3a2a22"/>
+  <path d="M48 66 Q60 76 72 66" stroke="#3a2a22" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <circle cx="34" cy="64" r="5" fill="#ff8e6e" opacity="0.6"/>
+  <circle cx="86" cy="64" r="5" fill="#ff8e6e" opacity="0.6"/>
 </svg>

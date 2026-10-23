@@ -132,6 +132,7 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 }
 .lede { font-size: 19px; color: var(--muted); margin: 22px 0 30px; max-width: 34em; }
 .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.cta-row [hidden] { display: none; }
 
 .hero-art { display: grid; place-items: center; gap: 18px; }
 .stage { position: relative; width: min(380px, 80vw); aspect-ratio: 1; }

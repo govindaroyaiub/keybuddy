@@ -96,8 +96,9 @@ function setupDownloads() {
     $("hero-note").textContent = `Free · ${f.label} ${f.note} · Other systems below`;
     $("dl-title").textContent = `Looks like you're on ${p.name}.`;
   } else if (os === "mobile") {
-    hero.href = "#playground";
+    hero.href = "#sounds";
     $("hero-download-label").textContent = "Try the sounds";
+    $("hero-try").hidden = true; // same job as the main button here
     $("hero-note").textContent = "KeyBuddy is a desktop app for macOS, Windows & Linux.";
     $("dl-mobile").hidden = false;
   }
