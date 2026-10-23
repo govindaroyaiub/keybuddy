@@ -2,7 +2,7 @@ mod audio;
 mod engine;
 mod hook;
 mod keymap;
-mod synth;
+mod packs;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -61,7 +61,7 @@ fn show_window(app: &AppHandle) {
 fn get_state(app: AppHandle, engine: State<Arc<Engine>>) -> serde_json::Value {
     json!({
         "settings": &*engine.settings.read(),
-        "packs": synth::PACKS,
+        "packs": packs::PACKS,
         "permission": hook::permission(),
         "autostart": app.autolaunch().is_enabled().unwrap_or(false),
         "platform": std::env::consts::OS,
@@ -107,7 +107,7 @@ fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, String> {
 
 fn build_tray(app: &AppHandle, s: &Settings) -> tauri::Result<Tray> {
     let toggle = CheckMenuItem::with_id(app, "toggle", "Sounds On", true, s.enabled, None::<&str>)?;
-    let packs: Vec<_> = synth::PACKS
+    let packs: Vec<_> = packs::PACKS
         .iter()
         .map(|p| {
             CheckMenuItem::with_id(app, format!("pack:{}", p.id), p.name, true, p.id == s.pack, None::<&str>)

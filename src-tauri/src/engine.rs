@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::Audio;
 use crate::keymap::{self, KeyClass};
-use crate::synth::{self, Bank, Rng};
+use crate::packs::{self, Bank};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
@@ -26,7 +26,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { enabled: true, volume: 0.6, pack: synth::DEFAULT_PACK.into(), key_up: true, stereo: true }
+        Self { enabled: true, volume: 0.6, pack: packs::DEFAULT_PACK.into(), key_up: true, stereo: true }
     }
 }
 
@@ -125,7 +125,7 @@ impl Engine {
         let stats: Stats = load(&dir.join("stats.json"));
         let seed = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_nanos() as u64).unwrap_or(7);
         let engine = Arc::new(Self {
-            bank: RwLock::new(Arc::new(synth::build(&settings.pack))),
+            bank: RwLock::new(Arc::new(packs::build(&settings.pack))),
             settings: RwLock::new(settings),
             stats: Mutex::new(stats),
             banks: Mutex::new(HashMap::new()),
@@ -146,14 +146,14 @@ impl Engine {
         if let Some(b) = self.banks.lock().get(pack) {
             return b.clone();
         }
-        let b = Arc::new(synth::build(pack));
+        let b = Arc::new(packs::build(pack));
         self.banks.lock().insert(pack.to_string(), b.clone());
         b
     }
 
     pub fn apply(&self, mut next: Settings) {
-        if !synth::PACKS.iter().any(|p| p.id == next.pack) {
-            next.pack = synth::DEFAULT_PACK.into();
+        if !packs::PACKS.iter().any(|p| p.id == next.pack) {
+            next.pack = packs::DEFAULT_PACK.into();
         }
         next.volume = next.volume.clamp(0.0, 1.0);
         if next.pack != self.settings.read().pack {
@@ -255,5 +255,19 @@ impl Engine {
                 me.play(&bank, code, false, volume, stereo);
             });
         }
+    }
+}
+
+pub struct Rng(pub u64);
+
+impl Rng {
+    pub fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+    pub fn range(&mut self, a: f32, b: f32) -> f32 {
+        a + (b - a) * ((self.next() >> 40) as f32 / (1u64 << 24) as f32)
     }
 }

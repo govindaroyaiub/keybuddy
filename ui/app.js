@@ -85,7 +85,10 @@ function buildPacks(packs) {
     el.dataset.id = p.id;
     el.innerHTML = `
       <div class="glyph">${p.name[0]}</div>
-      <div class="meta"><div class="name">${p.name}</div><div class="blurb">${p.blurb}</div></div>
+      <div class="meta">
+        <div class="name">${p.name} <span class="kind">${p.kind}</span></div>
+        <div class="blurb">${p.blurb}</div>
+      </div>
       <button class="play" title="Preview ${p.name}" aria-label="Preview ${p.name}">${PLAY_ICON}</button>`;
     el.addEventListener("click", (e) => {
       if (e.target.closest(".play")) {

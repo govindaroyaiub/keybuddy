@@ -14,7 +14,7 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
 use parking_lot::Mutex;
 
-use crate::synth::{Buf, SR};
+use crate::packs::{Buf, SR};
 
 const MAX_VOICES: usize = 48;
 
