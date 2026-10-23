@@ -494,7 +494,30 @@ function setupKeys() {
   document.addEventListener("keydown", unlock, { once: true });
 }
 
+// ---------- in-page links ----------
+
+// Scroll to sections without adding #sounds etc. to the address bar.
+function setupAnchors() {
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const id = a.getAttribute("href").slice(1);
+    const target = id && id !== "top" ? document.getElementById(id) : null;
+    e.preventDefault();
+    if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    else window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  // Old shared links with a hash still land in the right place, then tidy the URL.
+  if (location.hash) {
+    const target = document.getElementById(location.hash.slice(1));
+    if (target) requestAnimationFrame(() => target.scrollIntoView());
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+}
+
 // ---------- go ----------
+
+setupAnchors();
 
 setupTheme();
 setupDownloads();
