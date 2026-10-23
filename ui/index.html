@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>KeyBuddy</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <div class="buddy" id="buddy" aria-hidden="true">
+        <svg viewBox="0 0 120 120">
+          <rect class="cap-shadow" x="10" y="22" width="100" height="92" rx="22" />
+          <rect class="cap" x="10" y="12" width="100" height="90" rx="22" />
+          <rect class="cap-top" x="20" y="18" width="80" height="70" rx="16" />
+          <g class="eyes">
+            <circle cx="45" cy="50" r="6" />
+            <circle cx="75" cy="50" r="6" />
+          </g>
+          <path class="mouth" d="M48 66 Q60 76 72 66" />
+          <circle class="cheek" cx="34" cy="64" r="5" />
+          <circle class="cheek" cx="86" cy="64" r="5" />
+        </svg>
+      </div>
+      <div>
+        <h1>KeyBuddy</h1>
+        <p class="sub" id="mood">Ready when you are.</p>
+      </div>
+    </div>
+    <label class="switch big" title="Sounds on/off">
+      <input type="checkbox" id="enabled" />
+      <span class="track"><span class="thumb"></span></span>
+      <span class="switch-label" id="enabled-label">On</span>
+    </label>
+  </header>
+
+  <div class="banner" id="perm" hidden>
+    <div>
+      <strong>KeyBuddy can't hear your keyboard yet.</strong>
+      <span id="perm-text">Allow it under Privacy &amp; Security → Input Monitoring. It only sees which key moved, never what you typed.</span>
+    </div>
+    <button class="btn" id="perm-btn">Open Settings</button>
+  </div>
+
+  <main class="grid">
+    <section class="panel">
+      <h2>Sound</h2>
+      <div class="packs" id="packs" role="radiogroup" aria-label="Sound pack"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Feel</h2>
+      <div class="row">
+        <label for="volume">Volume</label>
+        <div class="slider-wrap">
+          <input type="range" id="volume" min="0" max="100" step="1" />
+          <output id="volume-out">60%</output>
+        </div>
+      </div>
+      <label class="row toggle">
+        <span>
+          Key-up sounds
+          <small>The softer click when a key springs back.</small>
+        </span>
+        <span class="switch"><input type="checkbox" id="key_up" /><span class="track"><span class="thumb"></span></span></span>
+      </label>
+      <label class="row toggle">
+        <span>
+          Stereo by key position
+          <small>Left keys sound left, right keys sound right.</small>
+        </span>
+        <span class="switch"><input type="checkbox" id="stereo" /><span class="track"><span class="thumb"></span></span></span>
+      </label>
+      <label class="row toggle">
+        <span>
+          Launch at login
+          <small>Start quietly in the menu bar.</small>
+        </span>
+        <span class="switch"><input type="checkbox" id="autostart" /><span class="track"><span class="thumb"></span></span></span>
+      </label>
+
+      <div class="stats">
+        <div><b id="wpm">0</b><span>WPM now</span></div>
+        <div><b id="best-today">0</b><span>Best today</span></div>
+        <div><b id="best-ever">0</b><span>Best ever</span></div>
+        <div><b id="today">0</b><span>Keys today</span></div>
+      </div>
+    </section>
+
+    <section class="panel wide">
+      <div class="panel-head">
+        <h2>Try it</h2>
+        <span class="hint">Type anywhere, or click a key.</span>
+      </div>
+      <div class="keyboard" id="keyboard"></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    KeyBuddy keeps key counts only — no letters, no account, nothing leaves this computer.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
