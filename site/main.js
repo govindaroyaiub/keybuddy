@@ -108,8 +108,8 @@ function setupDownloads() {
 
 function setupTheme() {
   const root = document.documentElement;
-  const dark = () =>
-    root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  // Light unless you've switched to dark.
+  const dark = () => root.dataset.theme === "dark";
   $("theme").addEventListener("click", () => {
     root.dataset.theme = dark() ? "light" : "dark";
     try { localStorage.setItem("theme", root.dataset.theme); } catch {}
@@ -310,9 +310,10 @@ function buildKeyboard() {
       k.tabIndex = -1;
       k.setAttribute("aria-label", label || "space");
       k.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
+        e.preventDefault(); // don't steal focus (keeps a phone keyboard closed)
         playKey(code, true);
         press(code, true);
+        tapType(code);
       });
       const up = () => {
         if (!k.classList.contains("down")) return;
@@ -399,8 +400,7 @@ function newPassage() {
   Object.assign(pr, { pack, idx: i, text: list[i], typed: "", strokes: 0, errors: 0, start: 0, end: 0 });
   $("pg-hint").className = "muted";
   $("pg-hint").textContent = "Mistakes show in red. Backspace to fix them.";
-  renderPassage();
-  updateStats();
+  afterTyping();
 }
 
 function renderPassage() {
@@ -434,25 +434,128 @@ function updateStats() {
   $("pg-time").textContent = secs.toFixed(1);
 }
 
-function typeKey(e) {
-  if (e.metaKey || e.ctrlKey || e.altKey || pr.end) return false;
-  if (e.key === "Backspace") {
-    pr.typed = pr.typed.slice(0, -1);
-  } else if (e.key.length === 1) {
-    if (!pr.start) {
-      pr.start = performance.now();
-      pr.timer = setInterval(updateStats, 100);
-    }
-    pr.strokes++;
-    if (e.key !== pr.text[pr.typed.length]) pr.errors++;
-    pr.typed += e.key;
-    if (pr.typed.length >= pr.text.length) finish();
-  } else {
-    return false;
+function typeChar(ch) {
+  if (pr.end) return;
+  if (!pr.start) {
+    pr.start = performance.now();
+    pr.timer = setInterval(updateStats, 100);
   }
+  pr.strokes++;
+  if (ch !== pr.text[pr.typed.length]) pr.errors++;
+  pr.typed += ch;
+  if (pr.typed.length >= pr.text.length) finish();
+}
+
+function typeBack() {
+  if (!pr.end) pr.typed = pr.typed.slice(0, -1);
+}
+
+function afterTyping() {
   renderPassage();
   updateStats();
+  syncInput();
+}
+
+// Physical keyboards (desktop). Phones send "Unidentified" here and go through onInput.
+function typeKey(e) {
+  if (e.metaKey || e.ctrlKey || e.altKey || pr.end) return false;
+  if (e.key === "Backspace") typeBack();
+  else if (e.key.length === 1) typeChar(e.key);
+  else return false;
+  afterTyping();
   return true;
+}
+
+// ----- phone keyboards -----
+// The hidden field always holds SENT + what you've typed. Comparing old and new
+// values handles typing, backspace and autocorrect swapping a word. SENT lets a
+// backspace register even when nothing is typed yet.
+const SENT = "\u200b";
+
+function syncInput() {
+  const input = $("pg-input");
+  const v = SENT + pr.typed;
+  if (input.value !== v) input.value = v;
+}
+
+const CHAR_CODE = (() => {
+  const m = {};
+  const plain = "1234567890-=qwertyuiop[]asdfghjkl;'`\\zxcvbnm,./";
+  const shifted = '!@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:"~|ZXCVBNM<>?';
+  const codes = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+    30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53];
+  codes.forEach((c, i) => { m[plain[i]] = c; m[shifted[i]] = c; });
+  m[" "] = 57;
+  return m;
+})();
+const CODE_CHAR = (() => {
+  const plain = {}, shifted = {};
+  for (const [ch, code] of Object.entries(CHAR_CODE)) {
+    if (/[a-z0-9\-=\[\];'`\\,.\/ ]/.test(ch)) plain[code] = ch;
+    else shifted[code] = ch;
+  }
+  return { plain, shifted };
+})();
+
+function tapSound(code) {
+  playKey(code, true);
+  press(code, true);
+  setTimeout(() => { playKey(code, false); press(code, false); }, 70);
+}
+
+function onInput() {
+  const v = $("pg-input").value;
+  if (!v.startsWith(SENT)) {
+    // backspaced past the start
+    typeBack();
+    tapSound(14);
+  } else {
+    const next = v.slice(SENT.length);
+    let same = 0;
+    while (same < next.length && same < pr.typed.length && next[same] === pr.typed[same]) same++;
+    for (let i = pr.typed.length; i > same; i--) { typeBack(); tapSound(14); }
+    for (const ch of next.slice(same)) {
+      typeChar(ch);
+      tapSound(CHAR_CODE[ch] || 30);
+      if (pr.end) break;
+    }
+  }
+  afterTyping();
+}
+
+// ----- on-screen keyboard -----
+const mods = { shift: false, caps: false };
+
+function setLatch(code, on) {
+  for (const el of keyEls.get(code) || []) el.classList.toggle("latched", on);
+}
+
+function tapType(code) {
+  if (code === 42 || code === 54) {
+    mods.shift = !mods.shift;
+    setLatch(42, mods.shift);
+    setLatch(54, mods.shift);
+    return;
+  }
+  if (code === 58) {
+    mods.caps = !mods.caps;
+    setLatch(58, mods.caps);
+    return;
+  }
+  if (code === 14) {
+    typeBack();
+  } else {
+    let ch = (mods.shift ? CODE_CHAR.shifted[code] : CODE_CHAR.plain[code]) || CODE_CHAR.plain[code];
+    if (!ch) return;
+    if (mods.caps && /[a-z]/.test(ch)) ch = ch.toUpperCase();
+    typeChar(ch);
+    if (mods.shift) {
+      mods.shift = false;
+      setLatch(42, false);
+      setLatch(54, false);
+    }
+  }
+  afterTyping();
 }
 
 function finish() {
@@ -479,7 +582,7 @@ function setupKeys() {
       playKey(code, true);
       press(code, true);
     }
-    if (document.activeElement === $("passage") && typeKey(e)) e.preventDefault();
+    if (document.activeElement === $("pg-input") && typeKey(e)) e.preventDefault();
   });
   document.addEventListener("keyup", (e) => {
     const code = CODES[e.code];
@@ -526,7 +629,16 @@ buildKeyboard();
 setupKeys();
 selectPack("thocky");
 newPassage();
-$("pg-new").addEventListener("click", () => { newPassage(); $("passage").focus(); });
+$("pg-new").addEventListener("click", () => { newPassage(); $("pg-input").focus(); });
+{
+  const input = $("pg-input");
+  const wrap = $("passage-wrap");
+  input.addEventListener("input", onInput);
+  input.addEventListener("focus", () => { wrap.classList.add("focused"); syncInput(); });
+  input.addEventListener("blur", () => wrap.classList.remove("focused"));
+  // keep the caret at the end so edits only happen to what you just typed
+  input.addEventListener("selectionchange", () => input.setSelectionRange(input.value.length, input.value.length));
+}
 loadPack("thocky");
 // fetch the rest once the page has settled
 setTimeout(() => PACKS.forEach((p) => loadPack(p.id)), 1500);

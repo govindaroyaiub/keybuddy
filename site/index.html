@@ -85,7 +85,7 @@
       <div class="section-head">
         <p class="eyebrow">Playground</p>
         <h2>Type for a test drive.</h2>
-        <p>Pick a sound, click the text and type. Or just type anywhere on this page.</p>
+        <p>Pick a sound, tap the text and type, or tap the keys below. On a computer you can type anywhere on this page.</p>
       </div>
 
       <div class="pg">
@@ -97,7 +97,12 @@
             <span><b id="pg-time">0.0</b>s</span>
           </div>
         </div>
-        <div class="passage" id="passage" tabindex="0" aria-label="Typing test. Click here and start typing."></div>
+        <div class="passage-wrap" id="passage-wrap">
+          <div class="passage" id="passage" aria-hidden="true"></div>
+          <!-- Real text field on top, so phones open their keyboard when you tap the text. -->
+          <input class="pg-input" id="pg-input" type="text" aria-label="Typing test. Tap here and start typing."
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
+        </div>
         <div class="pg-foot">
           <span class="muted" id="pg-hint">Mistakes show in red. Backspace to fix them.</span>
           <button class="btn ghost small" id="pg-new">New text</button>

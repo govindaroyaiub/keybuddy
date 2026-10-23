@@ -19,23 +19,6 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #17130f;
-    --bg-2: #1e1914;
-    --panel: #221c17;
-    --ink: #f5ece2;
-    --muted: #a69788;
-    --line: #352c25;
-    --accent: #ff7a45;
-    --accent-soft: #46271a;
-    --key: #2d2620;
-    --key-edge: #120e0b;
-    --key-down: #c4582c;
-    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 18px 40px -24px rgba(0, 0, 0, 0.8);
-    color-scheme: dark;
-  }
-}
 
 :root[data-theme="dark"] {
   --bg: #17130f;
@@ -94,10 +77,6 @@ h1, h2, h3 { font-family: var(--display); letter-spacing: -0.025em; line-height:
 .theme-toggle .sun { display: none; }
 :root[data-theme="dark"] .theme-toggle .sun { display: block; }
 :root[data-theme="dark"] .theme-toggle .moon { display: none; }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .theme-toggle .sun { display: block; }
-  :root:not([data-theme="light"]) .theme-toggle .moon { display: none; }
-}
 
 /* buttons */
 .btn {
@@ -202,11 +181,16 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
   font: 20px/1.7 var(--mono); color: var(--muted); padding: 18px 20px; border-radius: 14px;
   background: var(--bg); border: 1.5px solid transparent; outline: none; cursor: text; min-height: 110px;
 }
-.passage:focus { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
+.passage-wrap { position: relative; }
+.pg-input {
+  position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0;
+  opacity: 0; font-size: 16px; color: transparent; background: transparent; caret-color: transparent; cursor: text;
+}
+.passage-wrap.focused .passage { border-color: color-mix(in srgb, var(--accent) 60%, transparent); }
 .passage .ok { color: var(--ink); }
 .passage .bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 15%, transparent); border-radius: 3px; }
 .passage .cur { box-shadow: inset 2px 0 0 var(--accent); }
-.passage:not(:focus) .cur { box-shadow: none; }
+.passage-wrap:not(.focused) .cur { box-shadow: none; }
 .pg-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 12px 0 20px; font-size: 14px; }
 .pg-foot .result { color: var(--accent); font-weight: 600; }
 
@@ -219,6 +203,7 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
   transition: transform 50ms ease-out, box-shadow 50ms ease-out, background 120ms;
   touch-action: manipulation;
 }
+.key.latched { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
 .key.down { transform: translateY(4px); box-shadow: 0 0 0 var(--key-edge); background: var(--key-down); color: var(--ink); }
 
 /* features */
