@@ -703,6 +703,12 @@ function finish() {
 
 // ---------- typing anywhere ----------
 
+// True when the Playground fills the middle of the screen.
+function playgroundInView() {
+  const r = $("playground").getBoundingClientRect();
+  return r.top < innerHeight * 0.6 && r.bottom > innerHeight * 0.4;
+}
+
 function setupKeys() {
   const held = new Set();
   document.addEventListener("keydown", (e) => {
@@ -712,7 +718,16 @@ function setupKeys() {
       playKey(code, true);
       press(code, true);
     }
-    if (document.activeElement === $("pg-input") && typeKey(e)) e.preventDefault();
+    const input = $("pg-input");
+    if (document.activeElement === input) {
+      if (typeKey(e)) e.preventDefault();
+    } else if (playgroundInView() && !e.target.closest("input, textarea, select, button, [contenteditable]")) {
+      // On the Playground, just start typing: the first key jumps into the test.
+      if (typeKey(e)) {
+        e.preventDefault(); // also stops space from scrolling the page
+        input.focus({ preventScroll: true });
+      }
+    }
   });
   document.addEventListener("keyup", (e) => {
     const code = CODES[e.code];
