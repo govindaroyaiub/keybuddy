@@ -110,9 +110,36 @@ function setupTheme() {
   const root = document.documentElement;
   // Light unless you've switched to dark.
   const dark = () => root.dataset.theme === "dark";
-  $("theme").addEventListener("click", () => {
-    root.dataset.theme = dark() ? "light" : "dark";
-    try { localStorage.setItem("theme", root.dataset.theme); } catch {}
+  const btn = $("theme");
+  btn.addEventListener("click", () => {
+    const next = dark() ? "light" : "dark";
+    const apply = () => {
+      root.dataset.theme = next;
+      try { localStorage.setItem("theme", next); } catch {}
+    };
+    btn.classList.remove("spin");
+    void btn.offsetWidth; // restart the icon spin
+    btn.classList.add("spin");
+
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return apply();
+    if (!document.startViewTransition) {
+      // Older browsers: cross-fade colours instead of snapping.
+      root.classList.add("theming");
+      apply();
+      setTimeout(() => root.classList.remove("theming"), 450);
+      return;
+    }
+    // The new theme grows out of the toggle as a circle.
+    const r = btn.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    document.startViewTransition(apply).ready.then(() => {
+      root.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 600, easing: "cubic-bezier(0.22, 0.8, 0.2, 1)", pseudoElement: "::view-transition-new(root)" },
+      );
+    });
   });
 }
 
