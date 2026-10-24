@@ -1,5 +1,6 @@
 mod audio;
 mod engine;
+mod feel;
 mod hook;
 mod keymap;
 mod packs;
@@ -23,6 +24,7 @@ struct Tray {
     toggle: CheckMenuItem<Wry>,
     packs: Vec<(String, CheckMenuItem<Wry>)>,
     volumes: Vec<(u32, CheckMenuItem<Wry>)>,
+    feels: Vec<CheckMenuItem<Wry>>,
 }
 
 impl Tray {
@@ -37,6 +39,10 @@ impl Tray {
             .copied();
         for (v, item) in &self.volumes {
             let _ = item.set_checked(Some(*v) == nearest);
+        }
+        let level = feel::level_of(s.feel_of(&s.pack));
+        for (i, item) in self.feels.iter().enumerate() {
+            let _ = item.set_checked(i == level);
         }
     }
 }
@@ -128,10 +134,18 @@ fn build_menu(app: &AppHandle, engine: &Engine) -> tauri::Result<(Menu<Wry>, Tra
         })
         .collect::<Result<_, _>>()?;
 
+    let feels: Vec<_> = feel::LEVELS
+        .iter()
+        .enumerate()
+        .map(|(i, name)| CheckMenuItem::with_id(app, format!("feel:{i}"), *name, true, false, None::<&str>))
+        .collect::<Result<_, _>>()?;
+
     let pack_refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = packs.iter().map(|(_, i)| i as _).collect();
     let vol_refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = volumes.iter().map(|(_, i)| i as _).collect();
     let sound_menu = Submenu::with_items(app, "Sound", true, &pack_refs)?;
     let volume_menu = Submenu::with_items(app, "Volume", true, &vol_refs)?;
+    let feel_refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = feels.iter().map(|i| i as _).collect();
+    let feel_menu = Submenu::with_items(app, "Feel", true, &feel_refs)?;
     let open = MenuItem::with_id(app, "open", "Open KeyBuddy…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit KeyBuddy", true, None::<&str>)?;
     let menu = Menu::with_items(
@@ -140,13 +154,14 @@ fn build_menu(app: &AppHandle, engine: &Engine) -> tauri::Result<(Menu<Wry>, Tra
             &toggle,
             &PredefinedMenuItem::separator(app)?,
             &sound_menu,
+            &feel_menu,
             &volume_menu,
             &PredefinedMenuItem::separator(app)?,
             &open,
             &quit,
         ],
     )?;
-    let tray = Tray { toggle, packs, volumes };
+    let tray = Tray { toggle, packs, volumes, feels };
     tray.sync(&s);
     Ok((menu, tray))
 }
@@ -180,6 +195,11 @@ fn build_tray(app: &AppHandle, engine: &Engine) -> tauri::Result<Tray> {
                     return app.exit(0);
                 }
                 _ if id.starts_with("pack:") => next.pack = id[5..].to_string(),
+                _ if id.starts_with("feel:") => {
+                    let level = id[5..].parse::<usize>().unwrap_or(2);
+                    let pack = next.pack.clone();
+                    next.feel.insert(pack, feel::value_of(level));
+                }
                 _ if id.starts_with("vol:") => {
                     next.volume = id[4..].parse::<f32>().unwrap_or(60.0) / 100.0;
                 }

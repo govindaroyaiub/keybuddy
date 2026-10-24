@@ -10,8 +10,9 @@ use parking_lot::{Mutex, RwLock};
 use serde::{Deserialize, Serialize};
 
 use crate::audio::Audio;
+use crate::feel;
 use crate::keymap::{self, KeyClass};
-use crate::packs::{self, Bank};
+use crate::packs::{self, Bank, Buf};
 use crate::recorder::{self, Recorder, Summary};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -23,11 +24,26 @@ pub struct Settings {
     pub pack: String,
     pub key_up: bool,
     pub stereo: bool,
+    /// Soft (0.0) to hard (1.0) per pack id; missing = medium.
+    pub feel: HashMap<String, f32>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { enabled: true, volume: 0.6, pack: packs::DEFAULT_PACK.into(), key_up: true, stereo: true }
+        Self {
+            enabled: true,
+            volume: 0.6,
+            pack: packs::DEFAULT_PACK.into(),
+            key_up: true,
+            stereo: true,
+            feel: HashMap::new(),
+        }
+    }
+}
+
+impl Settings {
+    pub fn feel_of(&self, pack: &str) -> f32 {
+        self.feel.get(pack).copied().unwrap_or(0.5).clamp(0.0, 1.0)
     }
 }
 
@@ -197,33 +213,36 @@ impl Engine {
         if down {
             self.stats.lock().press(info.class == KeyClass::Normal || info.class == KeyClass::Space);
         }
-        let (enabled, volume, key_up, stereo) = {
+        let (enabled, volume, key_up, stereo, h) = {
             let s = self.settings.read();
-            (s.enabled, s.volume, s.key_up, s.stereo)
+            (s.enabled, s.volume, s.key_up, s.stereo, s.feel_of(&s.pack))
         };
         if !enabled || (!down && !key_up) {
             return;
         }
         let bank = self.bank.read().clone();
-        self.play(&bank, code, down, volume, stereo);
+        self.play(&bank, code, down, volume, stereo, h);
     }
 
-    fn play(&self, bank: &Bank, code: u16, down: bool, volume: f32, stereo: bool) {
+    /// `h` is the feel: 0.0 softest .. 1.0 hardest.
+    fn play(&self, bank: &Bank, code: u16, down: bool, volume: f32, stereo: bool, h: f32) {
         let info = keymap::info(code);
         let set = if down { &bank.press } else { &bank.release };
         let takes = &set[info.class as usize];
         if takes.is_empty() {
             return;
         }
-        // Each key keeps its own take; tiny pitch/level jitter keeps repeats alive.
-        let take = (code as usize).wrapping_mul(2_654_435_761) % takes.len();
+        // Takes are sorted softest to hardest; feel picks the region, and each
+        // key keeps its own spot in it. Tiny pitch/level jitter keeps repeats alive.
+        let take = &takes[feel::pick(takes.len(), h, code)];
         let (rate, jitter) = {
             let mut r = self.rng.lock();
-            (r.range(0.975, 1.025), r.range(0.88, 1.0))
+            (r.range(0.985, 1.015), r.range(0.9, 1.0))
         };
-        let gain = volume * volume * 1.6 * jitter;
+        let gain = volume * volume * 1.6 * feel::level(h) * jitter;
         let pan = if stereo { (info.x * 2.0 - 1.0) * 0.7 } else { 0.0 };
-        self.audio.play(takes[take].clone(), gain, pan, rate);
+        let shaped: Buf = feel::shape(take, h).into();
+        self.audio.play(shaped, gain, pan, rate * feel::rate(h));
     }
 
     /// Plays a short typing phrase in the given pack, regardless of `enabled`.
@@ -231,16 +250,16 @@ impl Engine {
         let me = self.clone();
         std::thread::spawn(move || {
             let bank = me.bank_for(&pack);
-            let (volume, stereo) = {
+            let (volume, stereo, h) = {
                 let s = me.settings.read();
-                (s.volume.max(0.25), s.stereo)
+                (s.volume.max(0.25), s.stereo, s.feel_of(&pack))
             };
             // "keybuddy" + space + "hi" + enter, with human-ish timing.
             let phrase = [37, 18, 21, 48, 22, 32, 32, 21, 57, 35, 23, 28];
             for code in phrase {
-                me.play(&bank, code, true, volume, stereo);
+                me.play(&bank, code, true, volume, stereo, h);
                 std::thread::sleep(Duration::from_millis(70));
-                me.play(&bank, code, false, volume, stereo);
+                me.play(&bank, code, false, volume, stereo, h);
                 std::thread::sleep(Duration::from_millis(45 + (code as u64 * 7) % 40));
             }
         });
@@ -271,17 +290,17 @@ fn save<T: Serialize>(path: &PathBuf, value: &T) {
 impl Engine {
     /// Sounds a key as if pressed and released (used by the on-screen keyboard).
     pub fn tap(self: &Arc<Self>, code: u16) {
-        let (volume, stereo, key_up) = {
+        let (volume, stereo, key_up, h) = {
             let s = self.settings.read();
-            (s.volume.max(0.25), s.stereo, s.key_up)
+            (s.volume.max(0.25), s.stereo, s.key_up, s.feel_of(&s.pack))
         };
         let bank = self.bank.read().clone();
-        self.play(&bank, code, true, volume, stereo);
+        self.play(&bank, code, true, volume, stereo, h);
         if key_up {
             let me = self.clone();
             std::thread::spawn(move || {
                 std::thread::sleep(Duration::from_millis(90));
-                me.play(&bank, code, false, volume, stereo);
+                me.play(&bank, code, false, volume, stereo, h);
             });
         }
     }

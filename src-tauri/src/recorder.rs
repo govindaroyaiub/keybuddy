@@ -340,15 +340,19 @@ fn build_pack(samples: &[f32], events: &[(u16, bool, usize)]) -> Result<(Vec<Ent
             _ => (8, 0.67),
         };
         let source = if takes.len() >= 3 || class == 0 { std::mem::take(takes) } else { pick(&press_clone(&entries), 0) };
-        for t in pick(&source, limit) {
-            entries.push((0, class as u8, normalize(t, target)));
+        let picked = pick(&source, limit);
+        let g = group_gain(&picked, target);
+        for t in picked {
+            entries.push((0, class as u8, normalize(t, g)));
         }
     }
     let fallback_rel: Vec<Vec<f32>> = release.iter().flatten().cloned().collect();
     for (class, takes) in release.iter_mut().enumerate() {
         let source = if takes.len() >= 3 { std::mem::take(takes) } else { fallback_rel.clone() };
-        for t in pick(&source, 12) {
-            entries.push((1, class as u8, normalize(t, 0.23)));
+        let picked = pick(&source, 12);
+        let g = group_gain(&picked, 0.23);
+        for t in picked {
+            entries.push((1, class as u8, normalize(t, g)));
         }
     }
     Ok((entries, summary))
@@ -373,13 +377,19 @@ fn pick(takes: &[Vec<f32>], n: usize) -> Vec<Vec<f32>> {
     (0..n).map(|i| v[(i as f32 * step) as usize].clone()).collect()
 }
 
-fn normalize(mut t: Vec<f32>, target: f32) -> Vec<f32> {
-    let peak = t.iter().fold(0.0f32, |m, s| m.max(s.abs())).max(1e-6);
-    let g = target / peak;
+/// One gain for a whole group, putting its median hit at `target`. Softer and
+/// harder hits keep their real difference, which the feel setting relies on.
+fn group_gain(takes: &[Vec<f32>], target: f32) -> f32 {
+    let mut peaks: Vec<f32> = takes.iter().map(|t| t.iter().fold(0.0f32, |m, s| m.max(s.abs()))).collect();
+    peaks.sort_by(|a, b| a.total_cmp(b));
+    target / peaks.get(peaks.len() / 2).copied().unwrap_or(1.0).max(1e-6)
+}
+
+fn normalize(mut t: Vec<f32>, g: f32) -> Vec<f32> {
     let n = t.len();
     let fade = (3 * FRAME).min(n);
     for (i, s) in t.iter_mut().enumerate() {
-        *s *= g;
+        *s = (*s * g).clamp(-0.98, 0.98);
         if i < 12 {
             *s *= i as f32 / 12.0;
         }

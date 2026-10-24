@@ -1,5 +1,6 @@
-//! Sound packs: real switch recordings (CC0, see sounds/CREDITS.md), sliced
-//! into single key hits by tools/slice.py and embedded in the binary.
+//! Sound packs: real keyboard recordings (see sounds/CREDITS.md), sliced into
+//! single key hits by tools/slice.py. The app embeds the same files the
+//! website plays (site/packs/), so both always sound identical.
 //!
 //! Each key class (normal, modifier, space, enter, backspace) has several
 //! takes for press and release so fast typing never sounds machine-gunned.
@@ -23,20 +24,24 @@ pub struct PackInfo {
 }
 
 pub const PACKS: &[PackInfo] = &[
-    PackInfo { id: "thocky", name: "Thocky", kind: "Linear", blurb: "Smooth linears with a deep, round bottom-out." },
-    PackInfo { id: "clacky", name: "Clacky", kind: "Linear", blurb: "Bright, hollow clack off hard caps." },
-    PackInfo { id: "clicky", name: "Clicky", kind: "Clicky", blurb: "Click-jacket blues. Loud, crisp, unapologetic." },
-    PackInfo { id: "tactile", name: "Tactile", kind: "Tactile", blurb: "Browns: a soft bump, then a muted landing." },
+    PackInfo { id: "creamy", name: "Creamy", kind: "Evo80", blurb: "Smooth, soft and buttery, like typing on frosting." },
+    PackInfo { id: "poppy", name: "Poppy", kind: "Rainy75 Pro", blurb: "Round little pops, like endless bubble wrap." },
+    PackInfo { id: "clacky", name: "Clacky", kind: "Rainy75", blurb: "Bright, crisp and a little rattly." },
+    PackInfo { id: "thocky", name: "Thocky", kind: "Crush80", blurb: "Ceramic caps on Cocoa linears. Deep and solid." },
+    PackInfo { id: "clicky", name: "Clicky", kind: "QK65", blurb: "A sharp click on every single press." },
+    PackInfo { id: "lego", name: "Lego", kind: "Luminkey80", blurb: "Plasticky snaps, like clicking bricks together." },
 ];
 
-pub const DEFAULT_PACK: &str = "thocky";
+pub const DEFAULT_PACK: &str = "creamy";
 
 fn data(id: &str) -> &'static [u8] {
     match id {
-        "clacky" => include_bytes!("../packs/clacky.kbp"),
-        "clicky" => include_bytes!("../packs/clicky.kbp"),
-        "tactile" => include_bytes!("../packs/tactile.kbp"),
-        _ => include_bytes!("../packs/thocky.kbp"),
+        "poppy" => include_bytes!("../../site/packs/lk-poppy.kbp"),
+        "clacky" => include_bytes!("../../site/packs/lk-clacky.kbp"),
+        "thocky" => include_bytes!("../../site/packs/lk-thocky.kbp"),
+        "clicky" => include_bytes!("../../site/packs/lk-clicky.kbp"),
+        "lego" => include_bytes!("../../site/packs/lk-lego.kbp"),
+        _ => include_bytes!("../../site/packs/lk-creamy.kbp"),
     }
 }
 
@@ -83,6 +88,11 @@ pub fn parse(mut b: &[u8]) -> Option<Bank> {
         let set = if kind == 0 { &mut bank.press } else { &mut bank.release };
         set.get_mut(class)?.push(buf);
         b = &b[6 + n * 2..];
+    }
+    // Softest to hardest hit, so the feel setting can pick gentler or harder takes.
+    let peak = |t: &Buf| t.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+    for set in bank.press.iter_mut().chain(bank.release.iter_mut()) {
+        set.sort_by(|a, b| peak(a).total_cmp(&peak(b)));
     }
     Some(bank)
 }

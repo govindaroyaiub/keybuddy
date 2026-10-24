@@ -269,3 +269,25 @@ kbd {
 .chip[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .rec-btn { display: inline-flex; align-items: center; gap: 8px; }
 .rec-dot.small { width: 9px; height: 9px; margin: 0; box-shadow: none; }
+
+/* soft <-> hard levels */
+.feel {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px;
+  padding: 10px 14px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line);
+}
+.feel-label { color: var(--muted); align-self: center; font-size: 13px; }
+.feel-label b, .feel-label output { color: var(--ink); font-weight: 700; }
+.levels { display: flex; align-items: flex-end; gap: 6px; }
+.level {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer;
+  border: 0; background: none; padding: 0; font: 600 10.5px/1 inherit; color: var(--muted);
+}
+.level .block {
+  width: 40px; height: calc(10px + var(--i) * 5px); border-radius: 6px;
+  background: var(--key); border: 1px solid var(--key-edge); box-shadow: 0 2px 0 var(--key-edge);
+  transition: background 120ms, transform 60ms, box-shadow 60ms;
+}
+.level:hover .block { border-color: var(--accent); }
+.level:active .block { transform: translateY(2px); box-shadow: none; }
+.level.on .block { background: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, #000); box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 55%, #000); }
+.level[aria-checked="true"] .lbl { color: var(--ink); }

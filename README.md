@@ -5,16 +5,19 @@ macOS, Windows and Linux. Lives in the menu bar / system tray.
 
 ## Packs
 
-| Pack | Switch | Character |
-|---|---|---|
-| Thocky | Linear | Deep, round bottom-out |
-| Clacky | Linear | Bright, hollow clack |
-| Clicky | Clicky | Click-jacket blues |
-| Tactile | Tactile | Browns: soft bump, muted landing |
+| Pack | Build |
+|---|---|
+| Creamy | Evo80, PP plate, Oat linears |
+| Poppy | Rainy75 Pro, HMX Pink Pig |
+| Clacky | Rainy75, Akko Cilantro |
+| Thocky | Crush80, ceramic keycaps, Kailh Cocoa |
+| Clicky | QK65, Outemu Ocean |
+| Lego | Luminkey80, BSUN Dusty Rose |
 
-Each pack is cut from real CC0 recordings ([credits](sounds/CREDITS.md)). Every
-key keeps its own take, big keys (space, enter, backspace) get bigger sounds,
-release clicks are optional, and stereo follows the key's position.
+Sounds come from [LumeKeebs](https://www.lumekeebs.com) builds ([credits](sounds/CREDITS.md)).
+Each pack has five feel levels, Pillow to Hard: softer levels pick gentler
+recorded hits and round off the tone, harder ones pick stronger hits and
+brighten it. The app and the website play the same files from `site/packs/`.
 
 ## Record your own keyboard
 
@@ -65,7 +68,8 @@ counts and typing speed locally. No account, no network.
 ```
 src-tauri/src/hook/     global key listening (macOS event tap, Windows LL hook, Linux evdev)
 src-tauri/src/keymap.rs native codes -> key position + class
-src-tauri/src/packs.rs  embedded sample packs
+src-tauri/src/packs.rs  embedded sample packs (from site/packs)
+src-tauri/src/feel.rs   soft-to-hard shaping
 src-tauri/src/audio.rs  low-latency mixer (cpal)
 src-tauri/src/engine.rs settings, stats, playback, recorded packs
 src-tauri/src/recorder.rs mic capture + slicing for recorded packs

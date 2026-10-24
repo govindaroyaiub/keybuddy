@@ -93,7 +93,10 @@ function buildChips(packs) {
   }
 }
 
+let currentPacks = [];
+
 function buildPacks(packs) {
+  currentPacks = packs;
   buildChips(packs);
   const wrap = $("packs");
   wrap.innerHTML = "";
@@ -147,7 +150,42 @@ function render() {
   for (const el of document.querySelectorAll(".pack, .chip")) {
     el.setAttribute("aria-checked", String(el.dataset.id === settings.pack));
   }
+  renderFeel();
   if (pr.pack !== null && pr.pack !== settings.pack) newPassage();
+}
+
+// ---------- soft <-> hard ----------
+
+const LEVELS = ["Pillow", "Soft", "Medium", "Firm", "Hard"];
+const feelOf = (pack) => {
+  const h = settings.feel && settings.feel[pack];
+  return typeof h === "number" ? h : 0.5;
+};
+
+function buildLevels() {
+  $("levels").innerHTML = LEVELS.map((name, i) =>
+    `<button class="level" role="radio" aria-checked="false" style="--i:${i}" title="${name}">
+      <span class="block"></span><span class="lbl">${name}</span>
+    </button>`).join("");
+  document.querySelectorAll(".level").forEach((el, i) => {
+    el.addEventListener("mousedown", (e) => e.preventDefault()); // keep typing focus
+    el.addEventListener("click", () => {
+      save({ feel: { ...(settings.feel || {}), [settings.pack]: i / (LEVELS.length - 1) } });
+      invoke("tap", { code: 37 }); // hear it right away
+    });
+  });
+}
+
+function renderFeel() {
+  if (!$("levels").children.length) return;
+  const lvl = Math.round(feelOf(settings.pack) * (LEVELS.length - 1));
+  const pack = currentPacks.find((p) => p.id === settings.pack);
+  $("feel-name").textContent = pack ? pack.name : "This sound";
+  $("feel-value").textContent = LEVELS[lvl];
+  document.querySelectorAll(".level").forEach((el, i) => {
+    el.classList.toggle("on", i <= lvl);
+    el.setAttribute("aria-checked", String(i === lvl));
+  });
 }
 
 function save(patch) {
@@ -228,6 +266,8 @@ async function init() {
   setupRecorder();
   setupTabs();
   setupPractice();
+  buildLevels();
+  renderFeel();
 
   setInterval(pollStats, 500);
   pollStats();
@@ -257,6 +297,21 @@ function setupTabs() {
 
 // Typing-test texts, matched to the sound you're hearing.
 const PASSAGES = {
+  creamy: [
+    "Creamy is what happens when smooth switches meet a soft plate: no rattle, no ping, just a warm, buttery press.",
+    "A polypropylene plate flexes a little under each key, so the sound comes out rounder and softer than metal.",
+    "Lubed linears glide all the way down, and the only thing left to hear is a smooth, muted landing.",
+  ],
+  poppy: [
+    "Poppy boards make a tiny round pop on every key, like stepping on bubble wrap that never runs out.",
+    "Long-pole switches bottom out on the stem instead of the housing, which gives each press a sharp, high pop.",
+    "Type a little faster and the pops start to blur into a soft, bouncy rhythm that is hard to stop.",
+  ],
+  lego: [
+    "Lego switches snap like bricks clicking together: bright, plasticky and oddly satisfying.",
+    "A little bump, a hard plastic landing, and a quick snap back up. Every key sounds like building something.",
+    "Some people call it the lego sound, and once you hear it you will not be able to unhear it.",
+  ],
   thocky: [
     "Thock is the deep, round sound of a lubed linear landing on a foam-filled board. Low, soft, and very satisfying.",
     "Linear switches have no bump and no click. The key travels straight down, so its only voice is the bottom-out.",
