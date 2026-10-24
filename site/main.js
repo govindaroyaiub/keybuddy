@@ -392,11 +392,10 @@ function makeKey(code, label, kind) {
   k.className = `key k-${kind}`;
   // right-hand modifiers label bottom-right, like on a Mac
   if (kind === "m" && [14, 28, 54, 126, 100].includes(code)) k.classList.add("k-r");
-  // narrow screens show the Mac symbol instead of the word
-  const short = { 29: "⌃", 56: "⌥", 100: "⌥", 125: "⌘", 126: "⌘" }[code];
-  k.innerHTML = short
-    ? `<span class="legend long">${esc(label)}</span><span class="legend short">${short}</span>`
-    : `<span class="legend">${esc(label)}</span>`;
+  // modifiers show only their Mac symbol (fn stays blank); the name is kept for screen readers
+  const symbol = { 464: "", 29: "⌃", 56: "⌥", 100: "⌥", 125: "⌘", 126: "⌘" }[code];
+  k.innerHTML = `<span class="legend">${esc(symbol ?? label)}</span>`;
+  if (symbol !== undefined) k.classList.add("k-sym");
   k.tabIndex = -1;
   k.setAttribute("aria-label", label || "space");
   k.addEventListener("pointerdown", (e) => {
