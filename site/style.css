@@ -102,19 +102,24 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 .section-head p:not(.eyebrow) { color: var(--muted); font-size: 17px; margin: 14px 0 0; }
 
 /* hero */
-.hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 48px; align-items: center; padding-top: 72px !important; }
-.hero h1 { font-size: clamp(40px, 6.2vw, 74px); font-weight: 800; }
+/* One screen tall on laptops: everything scales with the viewport height too. */
+.hero {
+  display: grid; grid-template-columns: 1.2fr 1fr; gap: 48px; align-items: center;
+  min-height: calc(100svh - 68px);
+  padding-top: clamp(24px, 5vh, 72px) !important; padding-bottom: clamp(24px, 5vh, 72px) !important;
+}
+.hero h1 { font-size: clamp(36px, min(5.4vw, 7.6vh), 74px); font-weight: 800; }
 .strike { position: relative; color: var(--muted); white-space: nowrap; }
 .strike::after {
   content: ""; position: absolute; left: -4%; right: -4%; top: 54%; height: 0.11em;
   background: var(--accent); border-radius: 4px; transform: rotate(-4deg);
 }
-.lede { font-size: 19px; color: var(--muted); margin: 22px 0 30px; max-width: 34em; }
+.lede { font-size: clamp(16px, 2.3vh, 19px); color: var(--muted); margin: clamp(14px, 2.6vh, 22px) 0 clamp(18px, 3.6vh, 30px); max-width: 34em; }
 .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
 .cta-row [hidden] { display: none; }
 
 .hero-art { display: grid; place-items: center; gap: 18px; }
-.stage { position: relative; width: min(380px, 80vw); aspect-ratio: 1; }
+.stage { position: relative; width: min(380px, 80vw, 46vh); aspect-ratio: 1; }
 .buddy { position: absolute; inset: 18%; filter: drop-shadow(0 24px 30px rgba(120, 50, 10, 0.25)); }
 .buddy svg { width: 100%; height: 100%; overflow: visible; }
 .b-shadow { fill: #c9542a; }
@@ -266,7 +271,7 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 }
 @media (max-width: 760px) {
   main > section { padding-top: 64px; padding-bottom: 64px; }
-  .hero { grid-template-columns: 1fr; gap: 24px; padding-top: 40px !important; }
+  .hero { grid-template-columns: 1fr; gap: 24px; min-height: 0; padding-top: 40px !important; }
   .hero-art { order: -1; }
   .stage { width: min(260px, 70vw); }
   .nav-links { display: none; }
