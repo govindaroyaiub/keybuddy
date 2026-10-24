@@ -4,11 +4,16 @@
 //!
 //! The stream is rebuilt when the default output device changes (headphones
 //! plugged in, Bluetooth connects) or the device errors out.
+//!
+//! After a stretch of silence the stream is paused so the audio hardware and
+//! its callback go idle; the next keypress wakes it. Hits that arrive while it
+//! wakes are queued, not dropped.
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SizedSample};
@@ -17,6 +22,8 @@ use parking_lot::Mutex;
 use crate::packs::{Buf, SR};
 
 const MAX_VOICES: usize = 48;
+/// Silence before the output stream is paused.
+const IDLE: Duration = Duration::from_secs(30);
 
 struct Voice {
     buf: Buf,
@@ -29,17 +36,22 @@ struct Voice {
 #[derive(Clone)]
 pub struct Audio {
     voices: Arc<Mutex<Vec<Voice>>>,
+    /// True while the output stream is running.
+    active: Arc<AtomicBool>,
+    wake: mpsc::Sender<()>,
 }
 
 impl Audio {
     pub fn start() -> Self {
         let voices = Arc::new(Mutex::new(Vec::with_capacity(MAX_VOICES)));
-        let v = voices.clone();
+        let active = Arc::new(AtomicBool::new(false));
+        let (wake, wake_rx) = mpsc::channel();
+        let (v, a) = (voices.clone(), active.clone());
         thread::Builder::new()
             .name("keybuddy-audio".into())
-            .spawn(move || run(v))
+            .spawn(move || run(v, a, wake_rx))
             .expect("spawn audio thread");
-        Self { voices }
+        Self { voices, active, wake }
     }
 
     /// `pan` in -1..1, `rate` ~1.0 (pitch jitter).
@@ -52,24 +64,62 @@ impl Audio {
             v.remove(0);
         }
         v.push(Voice { buf, pos: 0.0, rate: rate as f64, gl: c * k, gr: s * k });
+        drop(v);
+        // Wake a paused stream. (The audio thread re-checks for queued voices
+        // right after it marks itself inactive, so no hit can slip through.)
+        if !self.active.load(Ordering::SeqCst) {
+            let _ = self.wake.send(());
+        }
     }
 }
 
-fn run(voices: Arc<Mutex<Vec<Voice>>>) {
+fn run(voices: Arc<Mutex<Vec<Voice>>>, active: Arc<AtomicBool>, wake: mpsc::Receiver<()>) {
     let host = cpal::default_host();
     loop {
         let failed = Arc::new(AtomicBool::new(false));
         match open(&host, voices.clone(), failed.clone()) {
             Ok((stream, name)) => {
-                // Watch for device changes; dropping `stream` closes it.
-                while !failed.load(Ordering::Relaxed) && default_name(&host) == name {
-                    thread::sleep(Duration::from_millis(1500));
+                active.store(true, Ordering::SeqCst);
+                let mut last_sound = Instant::now();
+                // Runs until the device fails or changes; dropping `stream` closes it.
+                loop {
+                    if wake.recv_timeout(Duration::from_millis(1500)).is_ok() {
+                        last_sound = Instant::now();
+                    }
+                    if failed.load(Ordering::Relaxed) || default_name(&host) != name {
+                        break;
+                    }
+                    if !voices.lock().is_empty() {
+                        last_sound = Instant::now();
+                    }
+                    if last_sound.elapsed() < IDLE {
+                        continue;
+                    }
+                    // Go idle. Mark inactive first, then re-check, so a hit
+                    // queued in between is never left waiting.
+                    active.store(false, Ordering::SeqCst);
+                    if !voices.lock().is_empty() || stream.pause().is_err() {
+                        active.store(true, Ordering::SeqCst);
+                        last_sound = Instant::now();
+                        continue;
+                    }
+                    // Sleep until a key needs us.
+                    if wake.recv().is_err() {
+                        return;
+                    }
+                    while wake.try_recv().is_ok() {}
+                    if default_name(&host) != name || stream.play().is_err() {
+                        break; // device changed while idle: reopen (queued hits survive)
+                    }
+                    active.store(true, Ordering::SeqCst);
+                    last_sound = Instant::now();
                 }
+                active.store(false, Ordering::SeqCst);
                 drop(stream);
             }
             Err(e) => {
                 eprintln!("keybuddy: audio unavailable: {e}");
-                thread::sleep(Duration::from_secs(3));
+                let _ = wake.recv_timeout(Duration::from_secs(3));
             }
         }
     }

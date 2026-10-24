@@ -57,6 +57,9 @@ pub struct Stats {
     pub best_ever: u32,
     #[serde(skip)]
     recent: VecDeque<Instant>,
+    /// Changed since the last save.
+    #[serde(skip)]
+    dirty: bool,
 }
 
 #[derive(Serialize)]
@@ -86,6 +89,7 @@ impl Stats {
 
     fn press(&mut self, counts_as_char: bool) {
         self.roll_day();
+        self.dirty = true;
         self.today += 1;
         self.total += 1;
         if counts_as_char {
@@ -269,8 +273,13 @@ impl Engine {
         save(&self.dir.join("settings.json"), &*self.settings.read());
     }
 
+    /// Writes stats only if they changed since the last save.
     pub fn save_stats(&self) {
-        save(&self.dir.join("stats.json"), &*self.stats.lock());
+        let mut stats = self.stats.lock();
+        if stats.dirty {
+            save(&self.dir.join("stats.json"), &*stats);
+            stats.dirty = false;
+        }
     }
 }
 

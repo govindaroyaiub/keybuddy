@@ -269,11 +269,12 @@ async function init() {
   buildLevels();
   renderFeel();
 
-  setInterval(pollStats, 500);
+  // Poll only while the window is actually visible (not minimized/covered).
+  setInterval(() => !document.hidden && pollStats(), 500);
   pollStats();
 
   setInterval(async () => {
-    if (!$("perm").hidden) showPermission(await invoke("permission"));
+    if (!document.hidden && !$("perm").hidden) showPermission(await invoke("permission"));
   }, 2000);
 }
 

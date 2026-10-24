@@ -13,7 +13,7 @@ use serde_json::json;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use parking_lot::Mutex;
 use tauri::tray::TrayIconBuilder;
-use tauri::{AppHandle, Emitter, Manager, State, WindowEvent, Wry};
+use tauri::{AppHandle, Emitter, Manager, State, Wry};
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 
 use engine::{Engine, Settings, StatsView};
@@ -57,12 +57,22 @@ fn commit(app: &AppHandle, engine: &Engine, next: Settings) {
     let _ = app.emit("settings", &s);
 }
 
+/// Opens the settings window, creating it if needed. The window (and its
+/// webview, the heaviest part of the app) only exists while it's open.
 fn show_window(app: &AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.show();
-        let _ = w.unminimize();
-        let _ = w.set_focus();
-    }
+    let window = match app.get_webview_window("main") {
+        Some(w) => w,
+        None => {
+            let Some(config) = app.config().app.windows.first() else { return };
+            match tauri::WebviewWindowBuilder::from_config(app, config).and_then(|b| b.build()) {
+                Ok(w) => w,
+                Err(e) => return eprintln!("keybuddy: can't open window: {e}"),
+            }
+        }
+    };
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
 }
 
 #[tauri::command]
@@ -268,7 +278,8 @@ fn open_mic_settings() {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_window(app)))
-        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, None))
+        // Launch at login starts in the background: no window, just the tray.
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--background"])))
         .invoke_handler(tauri::generate_handler![
             get_state,
             set_settings,
@@ -303,7 +314,10 @@ pub fn run() {
             let hook_engine = engine.clone();
             hook::start(move |code, down| {
                 hook_engine.on_key(code, down);
-                let _ = handle.emit("key", (code, down));
+                // Only the open window shows keys; don't wake anything otherwise.
+                if handle.get_webview_window("main").is_some() {
+                    let _ = handle.emit("key", (code, down));
+                }
             });
 
             // Persist stats now and then; they're tiny.
@@ -313,18 +327,21 @@ pub fn run() {
                 stats_engine.save_stats();
             });
 
-            if first_run || hook::permission() != hook::Permission::Granted {
+            let background = std::env::args().any(|a| a == "--background");
+            if !background && (first_run || hook::permission() != hook::Permission::Granted) {
                 show_window(app.handle());
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
-            // Closing the window keeps KeyBuddy running in the tray.
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+        .build(tauri::generate_context!())
+        .expect("error while building KeyBuddy")
+        .run(|_app, event| {
+            // Closing the window destroys it to free memory; KeyBuddy keeps
+            // running in the tray. Only an explicit Quit (exit code) ends it.
+            if let tauri::RunEvent::ExitRequested { api, code, .. } = event {
+                if code.is_none() {
+                    api.prevent_exit();
+                }
             }
-        })
-        .run(tauri::generate_context!())
-        .expect("error while running KeyBuddy");
+        });
 }
