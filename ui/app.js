@@ -350,6 +350,16 @@ function setupPractice() {
     newPassage();
     el.focus();
   });
+  // In the Playground, just start typing: the first key jumps into the test.
+  document.addEventListener("keydown", (e) => {
+    if (document.activeElement === el || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (!(e.key.length === 1 || e.key === "Backspace")) return;
+    if ($("tab-practice").getAttribute("aria-selected") !== "true" || !$("rec").hidden) return;
+    const t = e.target;
+    if (t.closest && t.closest("input, textarea, select, [contenteditable]")) return;
+    el.focus();
+    onPracticeKey(e);
+  });
   newPassage();
 }
 
