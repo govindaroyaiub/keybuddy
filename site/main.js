@@ -205,12 +205,18 @@ for (const row of ROWS) {
 
 const SR = 48000;
 const PACKS = [
-  { id: "lk-creamy", name: "Creamy", kind: "Evo80", blurb: "PP plate and Oat linears. Smooth, soft and buttery, like typing on frosting." },
-  { id: "lk-poppy", name: "Poppy", kind: "Rainy75 Pro", blurb: "HMX Pink Pig switches. Round little pops, like bubble wrap that never runs out." },
-  { id: "lk-clacky", name: "Clacky", kind: "Rainy75", blurb: "Akko Cilantro switches. Bright, crisp and a little rattly." },
-  { id: "lk-thocky", name: "Thocky", kind: "Crush80", blurb: "Ceramic keycaps on Kailh Cocoa. Deep, heavy and solid." },
-  { id: "lk-clicky", name: "Clicky", kind: "QK65", blurb: "Outemu Ocean clicky switches. A sharp click on every single press." },
-  { id: "lk-lego", name: "Lego", kind: "Luminkey80", blurb: "BSUN Dusty Rose switches. Plasticky snaps, like clicking bricks together." },
+  { id: "lk-creamy", name: "Creamy", kind: "Evo80", build: ["Evo80", "PP plate", "Neo x Keygeek Oat"],
+    blurb: "Smooth, soft and buttery, like typing on frosting.", cap: "#f4e7d0", edge: "#c9b08a", ink: "#6b5233" },
+  { id: "lk-poppy", name: "Poppy", kind: "Rainy75 Pro", build: ["Rainy75 Pro", "HMX Pink Pig"],
+    blurb: "Round little pops, like bubble wrap that never runs out.", cap: "#ffb8ca", edge: "#d47b95", ink: "#7a2a43" },
+  { id: "lk-clacky", name: "Clacky", kind: "Rainy75", build: ["Rainy75", "Akko Cilantro"],
+    blurb: "Bright, crisp and a little rattly.", cap: "#c3ead3", edge: "#7db796", ink: "#285a3e" },
+  { id: "lk-thocky", name: "Thocky", kind: "Crush80", build: ["Crush80", "Ceramic keycaps", "Kailh Cocoa"],
+    blurb: "Deep, heavy and solid. The one people mean when they say thock.", cap: "#6e4c3b", edge: "#3e281e", ink: "#f6e4d4" },
+  { id: "lk-clicky", name: "Clicky", kind: "QK65", build: ["QK65", "Outemu Ocean"],
+    blurb: "A sharp click on every single press. Your neighbours will know.", cap: "#a3cbff", edge: "#5c8dcf", ink: "#1d3e6b" },
+  { id: "lk-lego", name: "Lego", kind: "Luminkey80", build: ["Luminkey80", "BSUN Dusty Rose"],
+    blurb: "Plasticky snaps, like clicking bricks together.", cap: "#ffd462", edge: "#cf9f28", ink: "#6b4c0a" },
 ];
 const DEFAULT_PACK = PACKS[0].id;
 
@@ -412,28 +418,92 @@ function buildKeyboard() {
   });
 }
 
-function buildPacks() {
-  $("pack-grid").innerHTML = PACKS.map((p) => `
-    <button class="pack-card" role="radio" data-id="${p.id}" aria-checked="false">
-      <span class="glyph">${esc(p.name[0])}</span>
-      <div><span class="kind">${esc(p.kind)}</span><h3>${esc(p.name)}</h3></div>
+// ---------- switch tester ----------
+
+// Press a keycap: it sinks and plays that sound's press; letting go plays the
+// release, like a real tester. Pressing also picks the sound everywhere.
+const TESTER_CODE = 35; // play as the H key: a normal key near the middle
+
+function pressCap(id, down) {
+  const cap = document.querySelector(`.tcap[data-id="${id}"]`);
+  if (!cap) return;
+  if (down) {
+    if (cap.classList.contains("down")) return;
+    cap.classList.add("down");
+    playKey(TESTER_CODE, true, id);
+    if (id !== pack) selectPack(id);
+  } else if (cap.classList.contains("down")) {
+    cap.classList.remove("down");
+    playKey(TESTER_CODE, false, id);
+  }
+}
+
+function renderInfo() {
+  const p = PACKS.find((x) => x.id === pack);
+  if (!p) return;
+  $("tester-info").style.cssText = `--cap:${p.cap};--edge:${p.edge};--cap-ink:${p.ink}`;
+  $("tester-info").innerHTML = `
+    <span class="mini-cap" aria-hidden="true">${esc(p.name[0])}</span>
+    <div class="info-text">
+      <h3>${esc(p.name)}</h3>
       <p>${esc(p.blurb)}</p>
-      <span class="play"><i>▶</i>Hear it</span>
+      <div class="build">${p.build.map((b) => `<span>${esc(b)}</span>`).join("")}</div>
+    </div>
+    <div class="info-actions">
+      <button class="btn primary small" id="info-demo">▶ Hear a sentence</button>
+      <a class="btn ghost small" href="#playground">Type with it ↓</a>
+    </div>`;
+  $("info-demo").addEventListener("click", () => {
+    const cap = document.querySelector(`.tcap[data-id="${p.id}"]`);
+    cap && cap.classList.add("playing");
+    demo(p.id, () => cap && cap.classList.remove("playing"));
+  });
+}
+
+function buildPacks() {
+  $("tester").innerHTML = PACKS.map((p, i) => `
+    <button class="tcap" role="radio" aria-checked="false" data-id="${p.id}" data-n="${i + 1}"
+      style="--cap:${p.cap};--edge:${p.edge};--cap-ink:${p.ink}" aria-label="${esc(p.name)}, key ${i + 1}">
+      <span class="well"><span class="led"></span><span class="top"><b>${esc(p.name[0])}</b></span></span>
+      <span class="tname">${esc(p.name)}</span>
     </button>`).join("");
   $("pg-chips").innerHTML = PACKS.map((p) =>
     `<button class="chip" role="radio" data-id="${p.id}" aria-checked="false">${esc(p.name)}</button>`).join("");
 
-  for (const card of document.querySelectorAll(".pack-card")) {
-    card.addEventListener("click", () => {
-      selectPack(card.dataset.id);
-      card.classList.add("playing");
-      demo(card.dataset.id, () => card.classList.remove("playing"));
+  for (const cap of document.querySelectorAll(".tcap")) {
+    const id = cap.dataset.id;
+    cap.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      pressCap(id, true);
+    });
+    for (const ev of ["pointerup", "pointerleave", "pointercancel"]) {
+      cap.addEventListener(ev, () => pressCap(id, false));
+    }
+    // keyboard users: Space / Enter on a focused cap
+    cap.addEventListener("keydown", (e) => {
+      if ((e.key === " " || e.key === "Enter") && !e.repeat) {
+        e.preventDefault();
+        e.stopPropagation();
+        pressCap(id, true);
+      }
+    });
+    cap.addEventListener("keyup", (e) => {
+      if (e.key === " " || e.key === "Enter") {
+        e.stopPropagation();
+        pressCap(id, false);
+      }
     });
   }
   for (const chip of document.querySelectorAll(".chip")) {
     chip.addEventListener("mousedown", (e) => e.preventDefault()); // keep typing focus
     chip.addEventListener("click", () => selectPack(chip.dataset.id));
   }
+}
+
+// True when the switch tester is in the middle of the screen.
+function testerInView() {
+  const r = $("tester").getBoundingClientRect();
+  return r.top < innerHeight * 0.75 && r.bottom > innerHeight * 0.25;
 }
 
 // Five feel levels, softest to hardest.
@@ -472,11 +542,12 @@ function selectPack(id) {
   if (!PACKS.some((p) => p.id === id)) return;
   const changed = id !== pack;
   pack = id;
-  for (const el of document.querySelectorAll(".pack-card, .chip")) {
+  for (const el of document.querySelectorAll(".tcap, .chip")) {
     el.setAttribute("aria-checked", String(el.dataset.id === id));
   }
   bankFor(id);
   renderFeel();
+  renderInfo();
   if (changed) newPassage();
 }
 
@@ -712,6 +783,12 @@ function playgroundInView() {
 function setupKeys() {
   const held = new Set();
   document.addEventListener("keydown", (e) => {
+    const digit = /^Digit([1-6])$/.exec(e.code);
+    if (digit && !e.metaKey && !e.ctrlKey && !e.altKey && document.activeElement !== $("pg-input") && testerInView()) {
+      e.preventDefault();
+      if (!e.repeat) pressCap(PACKS[digit[1] - 1].id, true);
+      return;
+    }
     const code = CODES[e.code];
     if (code && !held.has(code)) {
       held.add(code);
@@ -730,6 +807,11 @@ function setupKeys() {
     }
   });
   document.addEventListener("keyup", (e) => {
+    const digit = /^Digit([1-6])$/.exec(e.code);
+    if (digit && document.querySelector(`.tcap[data-n="${digit[1]}"].down`)) {
+      pressCap(PACKS[digit[1] - 1].id, false);
+      return;
+    }
     const code = CODES[e.code];
     if (code && held.delete(code)) {
       playKey(code, false);
