@@ -50,6 +50,16 @@ for macOS (Apple Silicon + Intel), Windows and Linux:
 The website's download buttons point at `releases/latest/download/…`, so they
 work as soon as the release is published.
 
+## Installing on macOS
+
+KeyBuddy isn't notarized by Apple yet (that needs a paid developer account), so
+the first launch is blocked. Open it once, then System Settings → Privacy &
+Security → **Open Anyway**. From Terminal, this does the same:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/KeyBuddy.app
+```
+
 ## Permissions
 
 - **macOS:** System Settings → Privacy & Security → **Input Monitoring** → allow KeyBuddy.

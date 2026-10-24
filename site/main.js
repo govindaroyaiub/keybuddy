@@ -19,6 +19,7 @@ const PLATFORMS = {
   mac: {
     name: "macOS",
     blurb: "macOS 11 or later. Lives in your menu bar.",
+    note: "First open: System Settings → Privacy & Security → Open Anyway.",
     files: [
       { label: "Apple Silicon", note: ".dmg", file: `KeyBuddy_${VERSION}_aarch64.dmg`, arch: "arm" },
       { label: "Intel", note: ".dmg", file: `KeyBuddy_${VERSION}_x64.dmg`, arch: "x64" },
@@ -82,6 +83,7 @@ function setupDownloads() {
       <div class="os">${ICONS[key]}${p.name}</div>
       <p>${p.blurb}</p>
       <div class="files">${files}</div>
+      ${p.note ? `<p class="dl-note">${p.note}</p>` : ""}
     </div>`;
   }).join("");
 

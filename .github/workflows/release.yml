@@ -84,7 +84,7 @@ jobs:
           releaseBody: |
             Download the installer for your computer below, or grab it from the website.
 
-            **macOS:** the app isn't notarized yet. The first time, right-click KeyBuddy → Open, or allow it under System Settings → Privacy & Security. Then allow Input Monitoring.
+            **macOS:** KeyBuddy isn't notarized by Apple yet. Drag it to Applications and open it once; macOS will block it. Then go to System Settings → Privacy & Security, scroll down and click **Open Anyway**. After that, allow Input Monitoring when asked.
             **Windows:** SmartScreen may warn about an unknown publisher. Click More info → Run anyway.
             **Linux:** add yourself to the `input` group (`sudo usermod -aG input $USER`) and log out and back in.
           releaseDraft: false
