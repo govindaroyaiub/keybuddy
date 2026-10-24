@@ -134,12 +134,14 @@ function setupTheme() {
     const x = r.left + r.width / 2;
     const y = r.top + r.height / 2;
     const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
-    document.startViewTransition(apply).ready.then(() => {
-      root.animate(
-        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-        { duration: 600, easing: "cubic-bezier(0.22, 0.8, 0.2, 1)", pseudoElement: "::view-transition-new(root)" },
-      );
-    });
+    // The circle is a CSS animation (so it's on from the very first frame,
+    // no flash of the full new theme), and other colour fades are switched
+    // off while the snapshot is taken (so nothing fades in underneath).
+    root.style.setProperty("--vt-x", `${x}px`);
+    root.style.setProperty("--vt-y", `${y}px`);
+    root.style.setProperty("--vt-r", `${radius}px`);
+    root.classList.add("theme-switching");
+    document.startViewTransition(apply).finished.finally(() => root.classList.remove("theme-switching"));
   });
 }
 
@@ -171,23 +173,21 @@ function keyClass(code) {
 
 const MAC_LIKE = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
-// [code, label, width]
+// MacBook Pro (2020) layout: no F-row (the Touch Bar replaces it), black
+// scissor keys, inverted-T arrows. [code, label, width, kind]
+//   kind: "a" letter (centred legend), "m" modifier (small word legend),
+//   "arrows" = the inverted-T cluster (3 units).
 const ROWS = [
-  [[1, "esc", 1.5], [59, "F1"], [60, "F2"], [61, "F3"], [62, "F4"], [63, "F5"], [64, "F6"],
-   [65, "F7"], [66, "F8"], [67, "F9"], [68, "F10"], [87, "F11"], [88, "F12"], [111, "del", 1.5]],
-  [[41, "`"], [2, "1"], [3, "2"], [4, "3"], [5, "4"], [6, "5"], [7, "6"], [8, "7"], [9, "8"],
-   [10, "9"], [11, "0"], [12, "-"], [13, "="], [14, MAC_LIKE ? "delete" : "backspace", 2]],
-  [[15, "tab", 1.5], [16, "Q"], [17, "W"], [18, "E"], [19, "R"], [20, "T"], [21, "Y"], [22, "U"],
-   [23, "I"], [24, "O"], [25, "P"], [26, "["], [27, "]"], [43, "\\", 1.5]],
-  [[58, "caps", 1.75], [30, "A"], [31, "S"], [32, "D"], [33, "F"], [34, "G"], [35, "H"], [36, "J"],
-   [37, "K"], [38, "L"], [39, ";"], [40, "'"], [28, MAC_LIKE ? "return" : "enter", 2.25]],
-  [[42, "shift", 2.25], [44, "Z"], [45, "X"], [46, "C"], [47, "V"], [48, "B"], [49, "N"], [50, "M"],
-   [51, ","], [52, "."], [53, "/"], [54, "shift", 2.75]],
-  MAC_LIKE
-    ? [[464, "fn"], [29, "ctrl"], [56, "opt"], [125, "cmd", 1.25], [57, "", 6.25], [126, "cmd", 1.25],
-       [100, "opt"], [105, "←"], [108, "↓"], [106, "→"]]
-    : [[29, "ctrl", 1.25], [125, "win", 1.25], [56, "alt", 1.25], [57, "", 6.25], [100, "alt", 1.25],
-       [126, "win", 1.25], [127, "menu", 1.25], [97, "ctrl", 1.25]],
+  [[41, "`"], [2, "1"], [3, "2"], [4, "3"], [5, "4"], [6, "5"], [7, "6"], [8, "7"], [9, "8"], [10, "9"], [11, "0"],
+   [12, "-"], [13, "="], [14, "delete", 1.5, "m"]],
+  [[15, "tab", 1.5, "m"], [16, "Q"], [17, "W"], [18, "E"], [19, "R"], [20, "T"], [21, "Y"], [22, "U"], [23, "I"],
+   [24, "O"], [25, "P"], [26, "["], [27, "]"], [43, "\\"]],
+  [[58, "caps lock", 1.75, "m"], [30, "A"], [31, "S"], [32, "D"], [33, "F"], [34, "G"], [35, "H"], [36, "J"], [37, "K"],
+   [38, "L"], [39, ";"], [40, "'"], [28, "return", 1.75, "m"]],
+  [[42, "shift", 2.25, "m"], [44, "Z"], [45, "X"], [46, "C"], [47, "V"], [48, "B"], [49, "N"], [50, "M"], [51, ","],
+   [52, "."], [53, "/"], [54, "shift", 2.25, "m"]],
+  [[464, "fn", 1, "m"], [29, "control", 1, "m"], [56, "option", 1, "m"], [125, "command", 1.25, "m"], [57, "", 5],
+   [126, "command", 1.25, "m"], [100, "option", 1, "m"], ["arrows", "", 3]],
 ];
 
 // Horizontal position of each key (0 = left, 1 = right) for stereo.
@@ -196,10 +196,12 @@ for (const row of ROWS) {
   const total = row.reduce((s, k) => s + (k[2] || 1), 0);
   let x = 0;
   for (const [code, , w = 1] of row) {
-    KEY_X.set(code, (x + w / 2) / total);
+    if (typeof code === "number") KEY_X.set(code, (x + w / 2) / total);
     x += w;
   }
 }
+// arrows sit at the right edge, esc (no key on screen) far left
+for (const [code, x] of [[105, 0.84], [103, 0.9], [108, 0.9], [106, 0.97], [1, 0.03]]) KEY_X.set(code, x);
 
 // ---------- audio ----------
 
@@ -385,37 +387,57 @@ function press(code, down) {
   }
 }
 
+function makeKey(code, label, kind) {
+  const k = document.createElement("button");
+  k.className = `key k-${kind}`;
+  // right-hand modifiers label bottom-right, like on a Mac
+  if (kind === "m" && [14, 28, 54, 126, 100].includes(code)) k.classList.add("k-r");
+  // narrow screens show the Mac symbol instead of the word
+  const short = { 29: "⌃", 56: "⌥", 100: "⌥", 125: "⌘", 126: "⌘" }[code];
+  k.innerHTML = short
+    ? `<span class="legend long">${esc(label)}</span><span class="legend short">${short}</span>`
+    : `<span class="legend">${esc(label)}</span>`;
+  k.tabIndex = -1;
+  k.setAttribute("aria-label", label || "space");
+  k.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); // don't steal focus (keeps a phone keyboard closed)
+    playKey(code, true);
+    press(code, true);
+    tapType(code);
+  });
+  const up = () => {
+    if (!k.classList.contains("down")) return;
+    playKey(code, false);
+    press(code, false);
+  };
+  k.addEventListener("pointerup", up);
+  k.addEventListener("pointerleave", up);
+  if (!keyEls.has(code)) keyEls.set(code, []);
+  keyEls.get(code).push(k);
+  return k;
+}
+
 function buildKeyboard() {
   const kb = $("keyboard");
-  ROWS.forEach((row, i) => {
+  for (const row of ROWS) {
     const r = document.createElement("div");
-    r.className = i === 0 ? "krow fn" : "krow";
-    for (const [code, label, w = 1] of row) {
-      const k = document.createElement("button");
-      k.className = "key";
+    r.className = "krow";
+    for (const [code, label, w = 1, kind = "a"] of row) {
+      if (code === "arrows") {
+        // inverted T: half-height ← and →, with ↑ and ↓ stacked in the middle
+        const t = document.createElement("div");
+        t.className = "arrows";
+        t.style.setProperty("--w", w);
+        t.append(makeKey(105, "◀", "arrow"), makeKey(103, "▲", "arrow"), makeKey(108, "▼", "arrow"), makeKey(106, "▶", "arrow"));
+        r.appendChild(t);
+        continue;
+      }
+      const k = makeKey(code, label, kind);
       k.style.setProperty("--w", w);
-      k.textContent = label;
-      k.tabIndex = -1;
-      k.setAttribute("aria-label", label || "space");
-      k.addEventListener("pointerdown", (e) => {
-        e.preventDefault(); // don't steal focus (keeps a phone keyboard closed)
-        playKey(code, true);
-        press(code, true);
-        tapType(code);
-      });
-      const up = () => {
-        if (!k.classList.contains("down")) return;
-        playKey(code, false);
-        press(code, false);
-      };
-      k.addEventListener("pointerup", up);
-      k.addEventListener("pointerleave", up);
       r.appendChild(k);
-      if (!keyEls.has(code)) keyEls.set(code, []);
-      keyEls.get(code).push(k);
     }
     kb.appendChild(r);
-  });
+  }
 }
 
 // ---------- switch tester ----------
@@ -464,7 +486,7 @@ function buildPacks() {
   $("tester").innerHTML = PACKS.map((p, i) => `
     <button class="tcap" role="radio" aria-checked="false" data-id="${p.id}" data-n="${i + 1}"
       style="--cap:${p.cap};--edge:${p.edge};--cap-ink:${p.ink}" aria-label="${esc(p.name)}, key ${i + 1}">
-      <span class="well"><span class="led"></span><span class="top"><b>${esc(p.name[0])}</b></span></span>
+      <span class="well"><span class="led"></span><span class="top"><span class="face"><b>${esc(p.name[0])}</b></span></span></span>
       <span class="tname">${esc(p.name)}</span>
     </button>`).join("");
   $("pg-chips").innerHTML = PACKS.map((p) =>
@@ -546,6 +568,11 @@ function selectPack(id) {
     el.setAttribute("aria-checked", String(el.dataset.id === id));
   }
   bankFor(id);
+  // pressed keys light up in the picked sound's colour
+  const p = PACKS.find((x) => x.id === id);
+  $("macbook").style.setProperty("--glow", p.cap);
+  $("macbook").style.setProperty("--glow-ink", p.ink);
+  $("wtitle").textContent = `${p.name}.txt`;
   renderFeel();
   renderInfo();
   if (changed) newPassage();

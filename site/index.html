@@ -89,35 +89,45 @@
       <div class="section-head">
         <p class="eyebrow">Playground</p>
         <h2>Type for a test drive.</h2>
-        <p>Pick a sound, tap the text and type, or tap the keys below. On a computer you can type anywhere on this page.</p>
+        <p>Pick a sound on the Touch Bar, then tap the text and type. On a computer you can type anywhere on this page.</p>
       </div>
 
-      <div class="pg">
-        <div class="pg-bar">
-          <div class="chips" id="pg-chips" role="radiogroup" aria-label="Sound"></div>
-        </div>
-        <div class="feel">
-          <span class="feel-label"><b id="feel-name">Creamy</b> feel: <output id="feel-value">Medium</output></span>
-          <div class="levels" id="levels" role="radiogroup" aria-label="Soft to hard"></div>
-        </div>
-        <div class="pg-bar stats-bar">
-          <div class="pg-stats">
-            <span><b id="pg-wpm">0</b> wpm</span>
-            <span><b id="pg-acc">100</b>% accuracy</span>
-            <span><b id="pg-time">0.0</b>s</span>
+      <!-- Playground: the typing test in a macOS-style window, above a MacBook
+           Pro deck (controls on the Touch Bar, then the keys). -->
+      <div class="pg laptop" id="macbook">
+        <div class="window">
+          <div class="titlebar">
+            <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span class="wtitle" id="wtitle">Creamy.txt</span>
+          </div>
+          <div class="passage-wrap" id="passage-wrap">
+            <div class="passage" id="passage" aria-hidden="true"></div>
+            <!-- Real text field on top, so phones open their keyboard when you tap the text. -->
+            <input class="pg-input" id="pg-input" type="text" aria-label="Typing test. Tap here and start typing."
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
+          </div>
+          <div class="statusbar">
+            <span id="pg-hint" class="muted">Mistakes show in red. Backspace to fix them.</span>
+            <span class="pg-stats">
+              <span><b id="pg-wpm">0</b> wpm</span>
+              <span><b id="pg-acc">100</b>%<i class="tb-word"> accuracy</i></span>
+              <span><b id="pg-time">0.0</b>s</span>
+            </span>
           </div>
         </div>
-        <div class="passage-wrap" id="passage-wrap">
-          <div class="passage" id="passage" aria-hidden="true"></div>
-          <!-- Real text field on top, so phones open their keyboard when you tap the text. -->
-          <input class="pg-input" id="pg-input" type="text" aria-label="Typing test. Tap here and start typing."
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
+        <div class="deck">
+          <div class="touchbar">
+            <div class="chips" id="pg-chips" role="radiogroup" aria-label="Sound"></div>
+            <span class="tb-sep" aria-hidden="true"></span>
+            <div class="feel">
+              <span class="sr-only"><span id="feel-name">Creamy</span> feel</span>
+              <div class="levels" id="levels" role="radiogroup" aria-label="Soft to hard"></div>
+              <output id="feel-value">Medium</output>
+            </div>
+            <button class="tb-btn" id="pg-new">New text</button>
+          </div>
+          <div class="keyboard" id="keyboard" aria-label="Keyboard. Click keys to hear them."></div>
         </div>
-        <div class="pg-foot">
-          <span class="muted" id="pg-hint">Mistakes show in red. Backspace to fix them.</span>
-          <button class="btn ghost small" id="pg-new">New text</button>
-        </div>
-        <div class="keyboard" id="keyboard" aria-label="Keyboard. Click keys to hear them."></div>
       </div>
     </section>
 
