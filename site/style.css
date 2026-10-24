@@ -141,7 +141,7 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 .hint-bubble { margin: 0; font-size: 14px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); padding: 8px 14px; border-radius: 999px; }
 
 /* sound packs */
-.pack-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.pack-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .pack-card {
   position: relative; padding: 22px; border-radius: 20px; background: var(--panel);
   border: 1.5px solid var(--line); box-shadow: var(--shadow);
@@ -175,6 +175,31 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 }
 .chip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
 .chip[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.stats-bar { justify-content: flex-end; margin-top: -4px; }
+.feel {
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 14px 16px; margin-bottom: 14px; border-radius: 14px; background: var(--bg); font-size: 14px;
+}
+.feel-label { color: var(--muted); align-self: center; }
+.feel-label b, .feel-label output { color: var(--ink); font-weight: 700; }
+.levels { display: flex; align-items: flex-end; gap: 8px; }
+.level {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+  border: 0; background: none; padding: 0; font: 600 11.5px/1 var(--body); color: var(--muted);
+}
+.level .block {
+  width: 46px; height: calc(14px + var(--i) * 7px); border-radius: 7px;
+  background: var(--key); border: 1px solid var(--key-edge); box-shadow: 0 3px 0 var(--key-edge);
+  transition: background 120ms, transform 60ms, box-shadow 60ms;
+}
+.level:hover .block { border-color: var(--accent); }
+.level:active .block { transform: translateY(3px); box-shadow: 0 0 0 var(--key-edge); }
+.level.on .block {
+  background: var(--accent); border-color: color-mix(in srgb, var(--accent) 60%, #000);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 55%, #000);
+}
+.level[aria-checked="true"] .lbl { color: var(--ink); }
+@media (max-width: 480px) { .level .block { width: 40px; } .levels { gap: 6px; } }
 .pg-stats { display: flex; gap: 18px; color: var(--muted); font-size: 14px; }
 .pg-stats b { color: var(--ink); font: 700 20px/1 var(--display); font-variant-numeric: tabular-nums; }
 .passage {

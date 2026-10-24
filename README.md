@@ -15,7 +15,6 @@ macOS, Windows and Linux. Lives in the menu bar / system tray.
 Each pack is cut from real CC0 recordings ([credits](sounds/CREDITS.md)). Every
 key keeps its own take, big keys (space, enter, backspace) get bigger sounds,
 release clicks are optional, and stereo follows the key's position.
-Listen offline: `sounds/demo/*.wav`.
 
 ## Record your own keyboard
 

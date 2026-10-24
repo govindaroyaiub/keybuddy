@@ -178,15 +178,18 @@ for (const row of ROWS) {
 
 const SR = 48000;
 const PACKS = [
-  { id: "thocky", name: "Thocky", kind: "Linear", blurb: "Smooth linears with a deep, round bottom-out. The sound of a foam-filled board." },
-  { id: "clacky", name: "Clacky", kind: "Linear", blurb: "Bright, hollow clack off hard caps. Crisp and a little rattly." },
-  { id: "clicky", name: "Clicky", kind: "Clicky", blurb: "Click-jacket blues. Loud, crisp and completely unapologetic." },
-  { id: "tactile", name: "Tactile", kind: "Tactile", blurb: "Browns: a soft bump, then a muted landing. Quiet but present." },
+  { id: "lk-creamy", name: "Creamy", kind: "Evo80", blurb: "PP plate and Oat linears. Smooth, soft and buttery, like typing on frosting." },
+  { id: "lk-poppy", name: "Poppy", kind: "Rainy75 Pro", blurb: "HMX Pink Pig switches. Round little pops, like bubble wrap that never runs out." },
+  { id: "lk-clacky", name: "Clacky", kind: "Rainy75", blurb: "Akko Cilantro switches. Bright, crisp and a little rattly." },
+  { id: "lk-thocky", name: "Thocky", kind: "Crush80", blurb: "Ceramic keycaps on Kailh Cocoa. Deep, heavy and solid." },
+  { id: "lk-clicky", name: "Clicky", kind: "QK65", blurb: "Outemu Ocean clicky switches. A sharp click on every single press." },
+  { id: "lk-lego", name: "Lego", kind: "Luminkey80", blurb: "BSUN Dusty Rose switches. Plasticky snaps, like clicking bricks together." },
 ];
+const DEFAULT_PACK = PACKS[0].id;
 
 let ctx = null;
 let master = null;
-let pack = "thocky";
+let pack = DEFAULT_PACK;
 const raw = {}; // id -> Promise<{press: Float32Array[][], release: ...}>
 const buffers = {}; // id -> {press: AudioBuffer[][], release: AudioBuffer[][]}
 
@@ -195,7 +198,14 @@ function audio() {
     ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
     master = ctx.createGain();
     master.gain.value = 0.9;
-    master.connect(ctx.destination);
+    // Gentle limiter so "hard" settings never clip.
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 6;
+    limiter.ratio.value = 12;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
+    master.connect(limiter).connect(ctx.destination);
   }
   if (ctx.state === "suspended") ctx.resume();
   return ctx;
@@ -237,8 +247,24 @@ async function bankFor(id) {
     b.copyToChannel(s, 0);
     return b;
   };
-  buffers[id] = { press: data.press.map((l) => l.map(toBuf)), release: data.release.map((l) => l.map(toBuf)) };
+  // Sort every class's takes from softest to hardest hit, so "feel" can pick
+  // gentler or harder real recordings instead of only changing volume.
+  const peak = (s) => s.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  const sorted = (lists) => lists.map((l) => [...l].sort((a, b) => peak(a) - peak(b)).map(toBuf));
+  buffers[id] = { press: sorted(data.press), release: sorted(data.release) };
   return buffers[id];
+}
+
+// ---------- soft <-> hard ----------
+
+// 0 = softest, 1 = hardest, per sound. Remembered in this browser.
+const feel = (() => {
+  try { return JSON.parse(localStorage.getItem("feel") || "{}"); } catch { return {}; }
+})();
+const feelOf = (id) => (typeof feel[id] === "number" ? feel[id] : 0.5);
+function setFeel(id, h) {
+  feel[id] = Math.min(1, Math.max(0, h));
+  try { localStorage.setItem("feel", JSON.stringify(feel)); } catch {}
 }
 
 function playKey(code, down, id = pack) {
@@ -248,24 +274,53 @@ function playKey(code, down, id = pack) {
     return;
   }
   const c = audio();
+  const h = feelOf(id);
   const cls = keyClass(code);
   const takes = (down ? bank.press : bank.release)[cls];
   if (!takes || !takes.length) return;
-  // each key keeps its own take; tiny jitter keeps repeats alive
-  const take = takes[(Math.imul(code, 2654435761) >>> 0) % takes.length];
+
+  // Pick from the soft or hard end of the recordings. Each key keeps its own
+  // spot inside that window, so repeated keys still sound like the same key.
+  const n = takes.length;
+  const span = Math.max(2, Math.round(n * 0.4));
+  const offset = ((Math.imul(code, 2654435761) >>> 0) % span) - Math.floor(span / 2);
+  const take = takes[Math.min(n - 1, Math.max(0, Math.round(h * (n - 1)) + offset))];
+
   const src = c.createBufferSource();
   src.buffer = take;
-  src.playbackRate.value = 0.975 + Math.random() * 0.05;
+  // softer presses land a touch lower, harder ones a touch higher
+  src.playbackRate.value = (0.95 + 0.08 * h) * (0.985 + Math.random() * 0.03);
+
+  // Level, with a rounded attack when soft (takes the edge off the click).
   const gain = c.createGain();
-  gain.gain.value = 0.85 + Math.random() * 0.15;
-  let node = src.connect(gain);
+  // takes already carry real loudness differences; this just adds a little on top
+  const level = (0.75 + 0.35 * h) * (0.9 + Math.random() * 0.1);
+  const t = c.currentTime;
+  const attack = (1 - h) * 0.006;
+  if (attack > 0.0005) {
+    gain.gain.setValueAtTime(level * 0.2, t);
+    gain.gain.linearRampToValueAtTime(level, t + attack);
+  } else {
+    gain.gain.value = level;
+  }
+
+  // Tone: soft is darker and muffled, hard is brighter and snappier.
+  const shelf = c.createBiquadFilter();
+  shelf.type = "highshelf";
+  shelf.frequency.value = 3000;
+  shelf.gain.value = (h - 0.5) * 14;
+  const lowpass = c.createBiquadFilter();
+  lowpass.type = "lowpass";
+  lowpass.frequency.value = 1600 * Math.pow(20000 / 1600, Math.min(1, h * 2));
+
+  let node = src.connect(gain).connect(shelf).connect(lowpass);
   if (c.createStereoPanner) {
     const pan = c.createStereoPanner();
     pan.pan.value = ((KEY_X.get(code) ?? 0.85) * 2 - 1) * 0.7;
     node = node.connect(pan);
   }
   node.connect(master);
-  src.start();
+  src.start(t);
 }
 
 function demo(id, onDone) {
@@ -354,6 +409,38 @@ function buildPacks() {
   }
 }
 
+// Five feel levels, softest to hardest.
+const LEVELS = ["Pillow", "Soft", "Medium", "Firm", "Hard"];
+const levelOf = (h) => Math.round(h * (LEVELS.length - 1));
+
+function renderFeel() {
+  const lvl = levelOf(feelOf(pack));
+  const p = PACKS.find((x) => x.id === pack);
+  $("feel-name").textContent = p ? p.name : "";
+  $("feel-value").textContent = LEVELS[lvl];
+  document.querySelectorAll(".level").forEach((el, i) => {
+    el.classList.toggle("on", i <= lvl);
+    el.setAttribute("aria-checked", String(i === lvl));
+  });
+}
+
+function setupFeel() {
+  $("levels").innerHTML = LEVELS.map((name, i) =>
+    `<button class="level" role="radio" aria-checked="false" style="--i:${i}" title="${name}">
+      <span class="block"></span><span class="lbl">${name}</span>
+    </button>`).join("");
+  document.querySelectorAll(".level").forEach((el, i) => {
+    el.addEventListener("mousedown", (e) => e.preventDefault()); // keep typing focus
+    el.addEventListener("click", () => {
+      setFeel(pack, i / (LEVELS.length - 1));
+      renderFeel();
+      // let you hear it right away
+      playKey(37, true);
+      setTimeout(() => playKey(37, false), 80);
+    });
+  });
+}
+
 function selectPack(id) {
   if (!PACKS.some((p) => p.id === id)) return;
   const changed = id !== pack;
@@ -362,12 +449,28 @@ function selectPack(id) {
     el.setAttribute("aria-checked", String(el.dataset.id === id));
   }
   bankFor(id);
+  renderFeel();
   if (changed) newPassage();
 }
 
 // ---------- typing test ----------
 
 const PASSAGES = {
+  creamy: [
+    "Creamy is what happens when smooth switches meet a soft plate: no rattle, no ping, just a warm, buttery press.",
+    "A polypropylene plate flexes a little under each key, so the sound comes out rounder and softer than metal.",
+    "Lubed linears glide all the way down, and the only thing left to hear is a smooth, muted landing.",
+  ],
+  poppy: [
+    "Poppy boards make a tiny round pop on every key, like stepping on bubble wrap that never runs out.",
+    "Long-pole switches bottom out on the stem instead of the housing, which gives each press a sharp, high pop.",
+    "Type a little faster and the pops start to blur into a soft, bouncy rhythm that is hard to stop.",
+  ],
+  lego: [
+    "Lego switches snap like bricks clicking together: bright, plasticky and oddly satisfying.",
+    "A little bump, a hard plastic landing, and a quick snap back up. Every key sounds like building something.",
+    "Some people call it the lego sound, and once you hear it you will not be able to unhear it.",
+  ],
   thocky: [
     "Thock is the deep, round sound of a lubed linear landing on a foam-filled board. Low, soft, and very satisfying.",
     "Linear switches have no bump and no click. The key travels straight down, so its only voice is the bottom-out.",
@@ -393,7 +496,7 @@ const PASSAGES = {
 const pr = { pack: null, idx: -1, text: "", typed: "", strokes: 0, errors: 0, start: 0, end: 0, timer: null };
 
 function newPassage() {
-  const list = PASSAGES[pack];
+  const list = PASSAGES[pack.replace(/^lk-/, "")] || PASSAGES.thocky;
   let i;
   do i = Math.floor(Math.random() * list.length); while (pack === pr.pack && i === pr.idx && list.length > 1);
   clearInterval(pr.timer);
@@ -621,13 +724,14 @@ function setupAnchors() {
 // ---------- go ----------
 
 setupAnchors();
+setupFeel();
 
 setupTheme();
 setupDownloads();
 buildPacks();
 buildKeyboard();
 setupKeys();
-selectPack("thocky");
+selectPack(DEFAULT_PACK);
 newPassage();
 $("pg-new").addEventListener("click", () => { newPassage(); $("pg-input").focus(); });
 {
@@ -639,6 +743,6 @@ $("pg-new").addEventListener("click", () => { newPassage(); $("pg-input").focus(
   // keep the caret at the end so edits only happen to what you just typed
   input.addEventListener("selectionchange", () => input.setSelectionRange(input.value.length, input.value.length));
 }
-loadPack("thocky");
+loadPack(DEFAULT_PACK);
 // fetch the rest once the page has settled
 setTimeout(() => PACKS.forEach((p) => loadPack(p.id)), 1500);

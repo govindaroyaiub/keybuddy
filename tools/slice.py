@@ -2,6 +2,7 @@
 """Slice CC0 typing recordings into KeyBuddy sound packs.
 
     python3 -I tools/slice.py sounds/raw src-tauri/packs sounds/demo
+    python3 -I tools/slice.py --files OUT_DIR DEMO_DIR creamy=creamy.wav poppy=poppy.wav
 
 For each pack it decodes the source clips (ffmpeg), finds every key hit,
 throws away messy ones (overlapping, clipped, too quiet), then sorts the rest:
@@ -127,10 +128,8 @@ def hits(x: list, env: list) -> list:
     return out
 
 
-def finish(seg: list, target_peak: float) -> list:
-    peak = max(abs(v) for v in seg) or 1.0
-    g = target_peak / peak
-    out = [v * g for v in seg]
+def finish(seg: list, gain: float) -> list:
+    out = [max(-32000.0, min(32000.0, v * gain)) for v in seg]
     fade = min(len(out), 3 * FRAME)
     for i in range(fade):
         out[len(out) - fade + i] *= 1 - i / fade
@@ -147,18 +146,17 @@ def spread(items: list, n: int) -> list:
     return [items[int(i * step)] for i in range(n)]
 
 
-def build(pack: str, raw: Path):
-    primary, fallback = PACKS[pack]
+def build(pack: str, groups: list):
+    """groups: lists of source files; later groups are only used as fallback."""
     all_hits = []
-    for group in (primary, fallback):
-        for name in group:
-            p = raw / f"{name}.mp3"
+    for group in groups:
+        for p in group:
             if not p.exists():
                 print(f"  missing {p.name}, skipping")
                 continue
             x = highpass(decode(p))
             h = hits(x, envelope(x))
-            print(f"  {name}: {len(h)} clean hits")
+            print(f"  {p.name}: {len(h)} clean hits")
             all_hits += h
         if len(all_hits) >= MIN_CLEAN:
             break
@@ -179,20 +177,30 @@ def build(pack: str, raw: Path):
     normal.sort(key=lambda h: h["zcr"])
     mid = len(normal) // 2
     normal = normal[max(0, mid - N_NORMAL * 2): mid + N_NORMAL * 2]
+    normal.sort(key=lambda h: h["peak"])
     normal = spread(normal, N_NORMAL)
     releases.sort(key=lambda h: h["peak"])
     releases = spread(releases, N_RELEASE)
 
+    # One gain per group (not per take), so softer and harder real hits keep
+    # their natural difference. Players use that to pick soft or hard takes.
+    def group_gain(group, target):
+        ps = sorted(h["peak"] for h in group) or [1.0]
+        return target / (ps[len(ps) // 2] or 1.0)
+
+    g_norm = group_gain(normal, 20000)
+    g_big = group_gain(big, 22000)
+    g_rel = group_gain(releases, 7500)
     entries = []
     for h in normal:
-        entries.append((0, 0, finish(h["seg"], 20000)))
-        entries.append((0, 1, finish(h["seg"], 17000)))
+        entries.append((0, 0, finish(h["seg"], g_norm)))
+        entries.append((0, 1, finish(h["seg"], g_norm * 0.85)))
     for cls, chunk in ((2, big[0:N_BIG]), (3, big[N_BIG:2 * N_BIG]), (4, big[2 * N_BIG:3 * N_BIG])):
         for h in chunk or big[:N_BIG]:
-            entries.append((0, cls, finish(h["seg"], 22000)))
+            entries.append((0, cls, finish(h["seg"], g_big)))
     for h in releases:
         for cls in range(5):
-            entries.append((1, cls, finish(h["seg"], 7500)))
+            entries.append((1, cls, finish(h["seg"], g_rel)))
 
     print(f"  -> {len(normal)} normal, {len(big)} big, {len(releases)} release takes")
     return entries
@@ -237,12 +245,26 @@ def write_demo(entries, path: Path):
 
 
 def main():
-    raw, out, demo = (Path(a) for a in sys.argv[1:4])
+    # Built-in packs:  slice.py RAW_DIR OUT_DIR DEMO_DIR
+    # Any files:       slice.py --files OUT_DIR DEMO_DIR id=path.wav [id=path ...]
+    if sys.argv[1] == "--files":
+        out, demo = Path(sys.argv[2]), Path(sys.argv[3])
+        jobs = {}
+        for arg in sys.argv[4:]:
+            pid, path = arg.split("=", 1)
+            jobs.setdefault(pid, []).append(Path(path))
+        jobs = {pid: [paths] for pid, paths in jobs.items()}
+    else:
+        raw, out, demo = (Path(a) for a in sys.argv[1:4])
+        jobs = {
+            pid: [[raw / f"{n}.mp3" for n in grp] for grp in groups]
+            for pid, groups in PACKS.items()
+        }
     out.mkdir(parents=True, exist_ok=True)
     demo.mkdir(parents=True, exist_ok=True)
-    for pack in PACKS:
+    for pack, groups in jobs.items():
         print(pack)
-        entries = build(pack, raw)
+        entries = build(pack, groups)
         write_pack(entries, out / f"{pack}.kbp")
         write_demo(entries, demo / f"{pack}.wav")
 

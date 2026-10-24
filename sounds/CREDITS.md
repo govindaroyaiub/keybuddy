@@ -1,23 +1,22 @@
 # Sound credits
 
-Every KeyBuddy pack is sliced from recordings released under
-[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) on Freesound.
-CC0 needs no attribution, but these people made KeyBuddy sound real — thank you.
+The six KeyBuddy sounds are cut from the LumeKeebs video
+[Creamy vs Thocky vs Clacky vs Poppy vs Clicky](https://www.youtube.com/watch?v=uPZy6d_M3hg).
+Parts for every build are at [lumekeebs.com](https://www.lumekeebs.com).
 
-| Pack | Recording | Author | Switch |
-|---|---|---|---|
-| Thocky | [Keyboard clicking typing Cherry Red Mechanical](https://freesound.org/people/handygaber/sounds/499773/) | handygaber | Cherry MX Red (Corsair K95) |
-| Thocky (fallback) | [Typing on a mechanical keyboard](https://freesound.org/people/IRF1010N/sounds/583085/) | IRF1010N | Gateron Red (GMMK TKL) |
-| Clacky | [keyboard2.wav](https://freesound.org/people/samchitto/sounds/696040/) | samchitto | Linear |
-| Clacky (fallback) | [Typing on a keyboard](https://freesound.org/people/SamsterBirdies/sounds/489422/) | SamsterBirdies | Gateron Red |
-| Clicky | [Typing on a keyboard](https://freesound.org/people/SamsterBirdies/sounds/489424/) | SamsterBirdies | Cherry MX Blue |
-| Clicky | [qKey.wav](https://freesound.org/people/UberBosser/sounds/421583/) | UberBosser | Blue |
-| Clicky (fallback) | [keyboard typing](https://freesound.org/people/seth-m/sounds/269713/) | seth-m | Cherry MX Blue |
-| Tactile | [Mechanical Keyboard Typing (Treble Version)](https://freesound.org/people/stu556/sounds/450282/) | stu556 | Cherry MX Brown |
-| Tactile | [Keyboard - Press down](https://freesound.org/people/Foxfire-/sounds/570754/) | Foxfire- | Cherry MX Brown |
+| Pack | Build |
+|---|---|
+| Creamy | Evo80, PP plate, Neo x Keygeek Oat linears |
+| Poppy | Rainy75 Pro, HMX Pink Pig |
+| Clacky | Rainy75 Standard, Akko Cilantro |
+| Thocky | Crush80, ceramic keycaps, Kailh Cocoa |
+| Clicky | QK65, Outemu Ocean clicky |
+| Lego | Luminkey80, BSUN Dusty Rose |
 
-Raw files are not committed (`sounds/raw/` is git-ignored). To rebuild packs,
-download the HQ previews into `sounds/raw/` with the names used in
-`tools/slice.py`, then run:
+The source audio isn't committed (`sounds/raw/` is git-ignored). Sections used:
+creamy 0–6 s, poppy 7–18 s, clacky 20–26 s, thocky 29–37 s, clicky 38–44 s,
+lego 46 s–end. Cut each to a mono 48 kHz WAV, then:
 
-    python3 -I tools/slice.py sounds/raw src-tauri/packs sounds/demo
+    python3 -I tools/slice.py --files site/packs /tmp/demo lk-creamy=creamy.wav lk-poppy=poppy.wav ...
+
+Recorded packs made in the app ("Record your keyboard") stay on your computer.
