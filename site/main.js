@@ -95,7 +95,7 @@ function setupDownloads() {
     hero.setAttribute("download", "");
     $("hero-download-label").textContent = `Download for ${p.name}`;
     $("hero-os-icon").innerHTML = ICONS[os];
-    $("hero-note").textContent = `Free · ${f.label} ${f.note} · Other systems below`;
+    $("hero-note").textContent = `Free beta · ${f.label} ${f.note} · Other systems below`;
     $("dl-title").textContent = `Looks like you're on ${p.name}.`;
   } else if (os === "mobile") {
     hero.href = "#sounds";
