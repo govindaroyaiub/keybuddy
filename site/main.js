@@ -217,7 +217,7 @@ const PACKS = [
   { id: "lk-creamy", name: "Creamy", kind: "Evo80", build: ["Evo80", "PP plate", "Neo x Keygeek Oat"],
     blurb: "Smooth, soft and buttery, like typing on frosting.", cap: "#f4e7d0", edge: "#c9b08a", ink: "#6b5233" },
   { id: "lk-poppy", name: "Poppy", kind: "Rainy75 Pro", build: ["Rainy75 Pro", "HMX Pink Pig"],
-    blurb: "Round little pops, like bubble wrap that never runs out.", cap: "#ffb8ca", edge: "#d47b95", ink: "#7a2a43" },
+    blurb: "Round little pops, like bubble wrap that never runs out.", cap: "#cbbcff", edge: "#8a6fd8", ink: "#35256b" },
   { id: "lk-clacky", name: "Clacky", kind: "Rainy75", build: ["Rainy75", "Akko Cilantro"],
     blurb: "Bright, crisp and a little rattly.", cap: "#c3ead3", edge: "#7db796", ink: "#285a3e" },
   { id: "lk-thocky", name: "Thocky", kind: "Crush80", build: ["Crush80", "Ceramic keycaps", "Kailh Cocoa"],
