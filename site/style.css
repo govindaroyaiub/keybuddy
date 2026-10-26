@@ -694,12 +694,32 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
   .holo-stage { margin-bottom: 0 !important; }
   .holo { width: 100%; }
   .deck-stage { padding-bottom: 0; }
-  /* Touch Bar wraps to two rows on phones so every control stays visible */
-  .touchbar { height: auto; flex-wrap: wrap; padding: 5px; gap: 5px; overflow: visible; }
-  .touchbar .chips { flex: 1 1 100%; flex-wrap: wrap; }
+  /* Phones: no keyboard case, and the Touch Bar becomes a plain control card
+     in the page's own style: sounds in a 3x2 grid, then feel + buttons. */
+  .deck { padding: 0; background: none; box-shadow: none; border-radius: 0; }
+  .tb-row { display: block; }
+  .touchbar {
+    display: grid; grid-template-columns: 1fr auto auto; grid-template-areas: "chips chips chips" "feel new reset";
+    align-items: center; gap: 10px 8px; height: auto; padding: 12px; overflow: visible;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+  }
+  .touchbar .chips { grid-area: chips; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .touchbar .chip, .tb-btn {
+    width: 100%; height: 36px; padding: 0 10px; margin: 0; border-radius: 10px; font-size: 13px;
+    background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+  }
+  .touchbar .chip:hover, .tb-btn:hover { background: var(--bg); border-color: var(--glow-edge, var(--accent)); }
+  .touchbar .chip[aria-checked="true"] { background: var(--glow); color: var(--glow-ink); border-color: var(--glow-edge, var(--accent)); }
+  #pg-new { grid-area: new; width: auto; }
+  .tb-reset { grid-area: reset; width: auto; }
   .tb-sep { display: none; }
-  .touchbar .chip, .tb-btn { height: 26px; padding: 0 10px; font-size: 11.5px; }
-  .tb-word { display: none; }
+  .feel { grid-area: feel; padding: 0; gap: 10px; }
+  .feel output { color: var(--ink); font-size: 13px; min-width: 0; }
+  .levels { height: 26px; gap: 4px; }
+  .level .block { width: 14px; height: calc(8px + var(--i) * 4.5px); background: var(--line); }
+  .level:hover .block { background: color-mix(in srgb, var(--line) 70%, var(--ink)); }
+  .level.on .block { background: var(--glow-edge, var(--accent)); }
+  :root[data-theme="dark"] .level.on .block { background: var(--glow); }
 }
 @media (max-width: 480px) {
   .cta-row .btn { width: 100%; }
