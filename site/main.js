@@ -175,21 +175,28 @@ function keyClass(code) {
 
 const MAC_LIKE = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 
-// MacBook Pro (2020) layout: no F-row (the Touch Bar replaces it), black
-// scissor keys, inverted-T arrows. [code, label, width, kind]
-//   kind: "a" letter (centred legend), "m" modifier (small word legend),
-//   "arrows" = the inverted-T cluster (3 units).
+// KeyBuddy custom 75% board, 16 units wide: [code, label, width, kind]
+//   kind: "a" alpha cap, "m" modifier cap, "x" accent cap (wears the picked
+//   sound's colour). code null = gap.
+const M = MAC_LIKE;
 const ROWS = [
+  [[1, "esc", 1, "x"], [null, "", 0.25], [59, "F1", 1, "m"], [60, "F2", 1, "m"], [61, "F3", 1, "m"], [62, "F4", 1, "m"],
+   [null, "", 0.25], [63, "F5"], [64, "F6"], [65, "F7"], [66, "F8"], [null, "", 0.25],
+   [67, "F9", 1, "m"], [68, "F10", 1, "m"], [87, "F11", 1, "m"], [88, "F12", 1, "m"], [null, "", 0.25],
+   [111, "del", 1, "m"], [110, "ins", 1, "m"]],
   [[41, "`"], [2, "1"], [3, "2"], [4, "3"], [5, "4"], [6, "5"], [7, "6"], [8, "7"], [9, "8"], [10, "9"], [11, "0"],
-   [12, "-"], [13, "="], [14, "delete", 1.5, "m"]],
+   [12, "-"], [13, "="], [14, M ? "delete" : "backspace", 2, "m"], [102, "home", 1, "m"]],
   [[15, "tab", 1.5, "m"], [16, "Q"], [17, "W"], [18, "E"], [19, "R"], [20, "T"], [21, "Y"], [22, "U"], [23, "I"],
-   [24, "O"], [25, "P"], [26, "["], [27, "]"], [43, "\\"]],
-  [[58, "caps lock", 1.75, "m"], [30, "A"], [31, "S"], [32, "D"], [33, "F"], [34, "G"], [35, "H"], [36, "J"], [37, "K"],
-   [38, "L"], [39, ";"], [40, "'"], [28, "return", 1.75, "m"]],
+   [24, "O"], [25, "P"], [26, "["], [27, "]"], [43, "\\", 1.5], [104, "pg up", 1, "m"]],
+  [[58, "caps", 1.75, "m"], [30, "A"], [31, "S"], [32, "D"], [33, "F"], [34, "G"], [35, "H"], [36, "J"], [37, "K"],
+   [38, "L"], [39, ";"], [40, "'"], [28, M ? "return" : "enter", 2.25, "x"], [109, "pg dn", 1, "m"]],
   [[42, "shift", 2.25, "m"], [44, "Z"], [45, "X"], [46, "C"], [47, "V"], [48, "B"], [49, "N"], [50, "M"], [51, ","],
-   [52, "."], [53, "/"], [54, "shift", 2.25, "m"]],
-  [[464, "fn", 1, "m"], [29, "control", 1, "m"], [56, "option", 1, "m"], [125, "command", 1.25, "m"], [57, "", 5],
-   [126, "command", 1.25, "m"], [100, "option", 1, "m"], ["arrows", "", 3]],
+   [52, "."], [53, "/"], [54, "shift", 1.75, "m"], [103, "↑", 1, "m"], [107, "end", 1, "m"]],
+  M
+    ? [[29, "ctrl", 1.25, "m"], [56, "opt", 1.25, "m"], [125, "cmd", 1.25, "m"], [57, "", 6.25], [126, "cmd", 1, "m"],
+       [100, "opt", 1, "m"], [464, "fn", 1, "m"], [105, "←", 1, "m"], [108, "↓", 1, "m"], [106, "→", 1, "m"]]
+    : [[29, "ctrl", 1.25, "m"], [125, "win", 1.25, "m"], [56, "alt", 1.25, "m"], [57, "", 6.25], [100, "alt", 1, "m"],
+       [127, "menu", 1, "m"], [97, "ctrl", 1, "m"], [105, "←", 1, "m"], [108, "↓", 1, "m"], [106, "→", 1, "m"]],
 ];
 
 // Horizontal position of each key (0 = left, 1 = right) for stereo.
@@ -202,8 +209,6 @@ for (const row of ROWS) {
     x += w;
   }
 }
-// arrows sit at the right edge, esc (no key on screen) far left
-for (const [code, x] of [[105, 0.84], [103, 0.9], [108, 0.9], [106, 0.97], [1, 0.03]]) KEY_X.set(code, x);
 
 // ---------- audio ----------
 
@@ -382,6 +387,7 @@ let buddyTimer;
 function press(code, down) {
   for (const el of keyEls.get(code) || []) el.classList.toggle("down", down);
   if (down) {
+    rgbPulse(KEY_X.get(code) ?? 0.5);
     const b = $("hero-buddy");
     b.classList.add("press");
     clearTimeout(buddyTimer);
@@ -389,27 +395,143 @@ function press(code, down) {
   }
 }
 
+// ---------- RGB light bar ----------
+
+// A rainbow wave runs along the palm rest's front edge. Each keypress sends a
+// ripple out from that key's position; typing faster speeds the wave up.
+// One small canvas is drawn per frame and copied into a blurred one: the
+// underglow on the "desk".
+const rgb = { hue: 0, energy: 0, ripples: [], last: 0, running: false, visible: false };
+
+function rgbPulse(x) {
+  rgb.ripples.push({ x, t: 0 });
+  if (rgb.ripples.length > 24) rgb.ripples.shift();
+  rgb.energy = Math.min(rgb.energy + 1, 12);
+}
+
+function setupRGB() {
+  const bar = $("rgb-bar");
+  const copies = [$("rgb-glow")];
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const W = 240; // logical pixels along the bar; CSS stretches it smoothly
+  for (const c of [bar, ...copies]) { c.width = W; c.height = 1; }
+  const ctx = bar.getContext("2d");
+  const img = ctx.createImageData(W, 1);
+
+  const draw = (now) => {
+    const dt = rgb.last ? Math.min((now - rgb.last) / 1000, 0.05) : 0;
+    rgb.last = now;
+    rgb.energy *= Math.exp(-dt * 1.2);
+    rgb.hue = (rgb.hue + dt * (25 + rgb.energy * 22)) % 360;
+    for (const r of rgb.ripples) r.t += dt;
+    rgb.ripples = rgb.ripples.filter((r) => r.t < 0.9);
+
+    for (let i = 0; i < W; i++) {
+      const x = i / (W - 1);
+      // two ripple fronts moving outward from where the key sits
+      let boost = 0;
+      for (const r of rgb.ripples) {
+        const front = r.t * 0.9;
+        const fade = 1 - r.t / 0.9;
+        const d = Math.min(Math.abs(x - (r.x - front)), Math.abs(x - (r.x + front)));
+        boost += Math.exp(-(d * d) / 0.0016) * fade + Math.exp(-((x - r.x) ** 2) / 0.0009) * fade * 0.6;
+      }
+      boost = Math.min(boost, 1.2);
+      const h = (rgb.hue + x * 300) % 360;
+      const l = 0.5 + boost * 0.3;
+      const [rr, gg, bb] = hsl(h, 1, Math.min(l, 0.9));
+      const a = Math.min(1, 0.62 + rgb.energy * 0.03 + boost * 0.4);
+      img.data.set([rr, gg, bb, a * 255], i * 4);
+    }
+    ctx.putImageData(img, 0, 0);
+    for (const c of copies) {
+      const cx = c.getContext("2d");
+      cx.clearRect(0, 0, W, 1);
+      cx.drawImage(bar, 0, 0);
+    }
+    if (rgb.visible && !reduce) requestAnimationFrame(draw);
+    else rgb.running = false;
+  };
+
+  const start = () => {
+    if (rgb.running) return;
+    rgb.running = true;
+    rgb.last = 0;
+    requestAnimationFrame(draw);
+  };
+  // only animate while the keyboard is on screen
+  new IntersectionObserver(([e]) => {
+    rgb.visible = e.isIntersecting;
+    if (rgb.visible) start();
+  }).observe(bar);
+  if (reduce) requestAnimationFrame(draw); // one static frame
+}
+
+// Fit the hologram to the keyboard's back edge as it looks on screen (the
+// board is tilted, so that edge appears narrower than the front): same width,
+// and its bottom sits right on the edge.
+function setupHoloWidth() {
+  const edge = $("deck-edge");
+  const pg = $("macbook");
+  const stage = document.querySelector(".holo-stage");
+  const holo = $("screen3d");
+  const fit = () => {
+    const e = edge.getBoundingClientRect();
+    if (e.width <= 0) return;
+    pg.style.setProperty("--back-w", `${Math.round(e.width)}px`);
+    const gap = e.top - holo.getBoundingClientRect().bottom;
+    if (Math.abs(gap) > 0.5) {
+      const mb = parseFloat(getComputedStyle(stage).marginBottom) || 0;
+      stage.style.marginBottom = `${Math.round(mb - gap)}px`;
+    }
+  };
+  // re-measure when the page or the keyboard itself changes size (the keys
+  // are built after this runs), and once everything has loaded
+  const ro = new ResizeObserver(fit);
+  ro.observe(pg);
+  ro.observe($("deck"));
+  // also whenever the keyboard comes on screen, the window resizes, or fonts land
+  new IntersectionObserver((entries) => entries[0].isIntersecting && fit()).observe($("deck"));
+  addEventListener("resize", fit);
+  addEventListener("load", fit);
+  document.fonts.ready.then(fit);
+  requestAnimationFrame(fit);
+}
+
+function hsl(h, s, l) {
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [f(0) * 255, f(8) * 255, f(4) * 255];
+}
+
 function makeKey(code, label, kind) {
   const k = document.createElement("button");
   k.className = `key k-${kind}`;
-  // right-hand modifiers label bottom-right, like on a Mac
-  if (kind === "m" && [14, 28, 54, 126, 100].includes(code)) k.classList.add("k-r");
-  // modifiers show only their Mac symbol (fn stays blank); the name is kept for screen readers
-  const symbol = { 464: "", 29: "⌃", 56: "⌥", 100: "⌥", 125: "⌘", 126: "⌘" }[code];
-  k.innerHTML = `<span class="legend">${esc(symbol ?? label)}</span>`;
-  if (symbol !== undefined) k.classList.add("k-sym");
+  if (["↑", "↓", "←", "→"].includes(label)) k.classList.add("k-arrow");
+  k.innerHTML = `<span class="legend">${esc(label)}</span>`;
   k.tabIndex = -1;
   k.setAttribute("aria-label", label || "space");
+  let downAt = 0;
+  let releaseTimer = 0;
   k.addEventListener("pointerdown", (e) => {
     e.preventDefault(); // don't steal focus (keeps a phone keyboard closed)
+    clearTimeout(releaseTimer);
+    downAt = performance.now();
     playKey(code, true);
     press(code, true);
     tapType(code);
   });
   const up = () => {
     if (!k.classList.contains("down")) return;
-    playKey(code, false);
-    press(code, false);
+    // a mouse click is over in ~50 ms; hold the pressed look a little longer
+    // so the cap visibly travels, like a real keystroke
+    const wait = Math.max(0, 120 - (performance.now() - downAt));
+    clearTimeout(releaseTimer);
+    releaseTimer = setTimeout(() => {
+      playKey(code, false);
+      press(code, false);
+    }, wait);
   };
   k.addEventListener("pointerup", up);
   k.addEventListener("pointerleave", up);
@@ -420,17 +542,15 @@ function makeKey(code, label, kind) {
 
 function buildKeyboard() {
   const kb = $("keyboard");
-  for (const row of ROWS) {
+  ROWS.forEach((row, i) => {
     const r = document.createElement("div");
-    r.className = "krow";
+    r.className = i === 0 ? "krow fn" : "krow";
     for (const [code, label, w = 1, kind = "a"] of row) {
-      if (code === "arrows") {
-        // inverted T: half-height ← and →, with ↑ and ↓ stacked in the middle
-        const t = document.createElement("div");
-        t.className = "arrows";
-        t.style.setProperty("--w", w);
-        t.append(makeKey(105, "◀", "arrow"), makeKey(103, "▲", "arrow"), makeKey(108, "▼", "arrow"), makeKey(106, "▶", "arrow"));
-        r.appendChild(t);
+      if (code === null) {
+        const gap = document.createElement("span");
+        gap.className = "kgap";
+        gap.style.setProperty("--w", w);
+        r.appendChild(gap);
         continue;
       }
       const k = makeKey(code, label, kind);
@@ -438,7 +558,7 @@ function buildKeyboard() {
       r.appendChild(k);
     }
     kb.appendChild(r);
-  }
+  });
 }
 
 // ---------- switch tester ----------
@@ -542,6 +662,11 @@ function renderFeel() {
     el.classList.toggle("on", i <= lvl);
     el.setAttribute("aria-checked", String(i === lvl));
   });
+  // the knob isn't a control: it just turns to match the bars,
+  // -135° (Pillow) to +135° (Hard), with its LED ring filling up
+  const turn = (lvl / (LEVELS.length - 1)) * 270;
+  $("knob").style.setProperty("--angle", `${turn - 135}deg`);
+  $("knob").style.setProperty("--sweep", `${turn}deg`);
 }
 
 function setupFeel() {
@@ -573,6 +698,7 @@ function selectPack(id) {
   const p = PACKS.find((x) => x.id === id);
   $("macbook").style.setProperty("--glow", p.cap);
   $("macbook").style.setProperty("--glow-ink", p.ink);
+  $("macbook").style.setProperty("--glow-edge", p.edge);
   $("wtitle").textContent = `${p.name}.txt`;
   renderFeel();
   renderInfo();
@@ -632,6 +758,15 @@ function newPassage() {
   afterTyping();
 }
 
+// Start the same text again: clear what's typed and the stats.
+function resetPassage() {
+  clearInterval(pr.timer);
+  Object.assign(pr, { typed: "", strokes: 0, errors: 0, start: 0, end: 0 });
+  $("pg-hint").className = "muted";
+  $("pg-hint").textContent = "Mistakes show in red. Backspace to fix them.";
+  afterTyping();
+}
+
 function renderPassage() {
   const html = [];
   for (let i = 0; i < pr.text.length; i++) {
@@ -659,7 +794,8 @@ function numbers() {
 function updateStats() {
   const { secs, wpm, acc } = numbers();
   $("pg-wpm").textContent = wpm;
-  $("pg-acc").textContent = acc;
+  // no accuracy until something has been typed
+  $("pg-acc").textContent = pr.strokes ? `${acc}%` : "–";
   $("pg-time").textContent = secs.toFixed(1);
 }
 
@@ -877,6 +1013,8 @@ function setupAnchors() {
 
 setupAnchors();
 setupFeel();
+setupRGB();
+setupHoloWidth();
 
 setupTheme();
 setupDownloads();
@@ -886,6 +1024,7 @@ setupKeys();
 selectPack(DEFAULT_PACK);
 newPassage();
 $("pg-new").addEventListener("click", () => { newPassage(); $("pg-input").focus(); });
+$("pg-reset").addEventListener("click", () => { resetPassage(); $("pg-input").focus(); });
 {
   const input = $("pg-input");
   const wrap = $("passage-wrap");

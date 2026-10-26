@@ -427,7 +427,8 @@ function practiceNumbers() {
 function updatePracticeStats() {
   const { secs, wpm, acc } = practiceNumbers();
   $("p-wpm").textContent = wpm;
-  $("p-acc").textContent = acc;
+  // no accuracy until something has been typed
+  $("p-acc").textContent = pr.strokes ? `${acc}%` : "–";
   $("p-time").textContent = secs.toFixed(1);
 }
 

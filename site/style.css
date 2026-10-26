@@ -20,6 +20,11 @@
   --alu-top: #e4e5e7;
   --alu-bot: #cfd1d4;
   --kb-well: #b7babf;
+  --case-top: #ece7df;
+  --case-bot: #d8d0c4;
+  --plate: #c4bbad;
+  --cap-alpha: #f7f2e9; --cap-alpha-edge: #cbc1b0; --cap-alpha-ink: #4a4038;
+  --cap-mod: #d9d0c1; --cap-mod-edge: #ada18e; --cap-mod-ink: #5a4f44;
   --win-bg: #fdfcfa;
   --win-bar: #f1efec;
   --win-line: #e2dfda;
@@ -40,6 +45,11 @@
   --alu-top: #4b4c50;
   --alu-bot: #36373a;
   --kb-well: #222326;
+  --case-top: #36363c;
+  --case-bot: #26262b;
+  --plate: #141417;
+  --cap-alpha: #3c3c43; --cap-alpha-edge: #1a1a1e; --cap-alpha-ink: #ececf0;
+  --cap-mod: #2b2b31; --cap-mod-edge: #111114; --cap-mod-ink: #b9b9c2;
   --win-bg: #1d1d1f;
   --win-bar: #28282b;
   --win-line: #34343a;
@@ -288,6 +298,69 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+/* Hologram: the typing test floats nearly upright above the keyboard as
+   projected light, tinted with the picked sound's colour. */
+.holo-stage { padding-bottom: 0; z-index: 1; pointer-events: none; } /* the stage box overlaps the Touch Bar; only the window takes clicks */
+.holo .window { pointer-events: auto; }
+.holo {
+  --win-bg: transparent; --win-bar: transparent; --win-line: color-mix(in srgb, var(--glow) 35%, transparent);
+  --win-ink: color-mix(in srgb, var(--glow) 25%, #fff); --win-muted: color-mix(in srgb, var(--glow) 70%, transparent);
+  position: relative; transform: rotateX(0deg); transform-origin: 50% 100%;
+  width: var(--back-w, 100%); margin: 0 auto;
+}
+:root:not([data-theme="dark"]) .holo {
+  --win-ink: var(--ink); --win-muted: color-mix(in srgb, var(--ink) 55%, transparent);
+  --win-line: color-mix(in srgb, var(--glow-edge) 45%, transparent);
+}
+/* light mode: pastel tints wash out on cream, so lean on the deeper edge colour */
+:root:not([data-theme="dark"]) .holo .window {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 55%, transparent), color-mix(in srgb, var(--glow) 28%, transparent));
+  border-color: color-mix(in srgb, var(--glow-edge) 70%, transparent);
+  box-shadow: 0 0 26px -4px color-mix(in srgb, var(--glow-edge) 65%, transparent),
+    inset 0 0 30px -8px color-mix(in srgb, var(--glow-edge) 45%, transparent);
+}
+:root:not([data-theme="dark"]) .holo .window::after {
+  background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--glow-edge) 16%, transparent) 0 1px, transparent 1px 4px);
+  mix-blend-mode: multiply;
+}
+:root:not([data-theme="dark"]) .holo .passage .ok { text-shadow: 0 0 10px color-mix(in srgb, var(--glow-edge) 55%, transparent); }
+
+.holo .window {
+  position: relative; border-radius: 14px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--glow) 16%, transparent), color-mix(in srgb, var(--glow) 6%, transparent));
+  border: 1px solid color-mix(in srgb, var(--glow) 45%, transparent);
+  box-shadow: 0 0 24px -6px color-mix(in srgb, var(--glow) 70%, transparent), inset 0 0 30px -10px color-mix(in srgb, var(--glow) 55%, transparent);
+  backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  animation: holo-flicker 6s infinite;
+}
+.holo .window:has(.passage-wrap.focused) {
+  border-color: color-mix(in srgb, var(--glow) 80%, transparent);
+  box-shadow: 0 0 34px -4px color-mix(in srgb, var(--glow) 85%, transparent), inset 0 0 36px -8px color-mix(in srgb, var(--glow) 65%, transparent);
+}
+/* scanlines */
+.holo .window::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: repeating-linear-gradient(180deg, color-mix(in srgb, var(--glow) 14%, transparent) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen; opacity: 0.6;
+}
+@keyframes holo-flicker { 0%, 92%, 100% { opacity: 1; } 93% { opacity: 0.86; } 94% { opacity: 1; } 96% { opacity: 0.92; } }
+.holo .lights { visibility: hidden; }
+.holo .titlebar, .holo .statusbar { background: transparent; }
+.holo .wtitle { color: var(--win-muted); letter-spacing: 0.06em; }
+.holo .passage .ok { text-shadow: 0 0 10px color-mix(in srgb, var(--glow) 80%, transparent); }
+.holo .passage .bad { color: #ff5a5f; background: rgba(255, 90, 95, 0.16); text-shadow: 0 0 10px rgba(255, 90, 95, 0.8); }
+.holo .passage .cur { box-shadow: inset 2px 0 0 var(--glow), -2px 0 10px -2px var(--glow); }
+.holo .pg-stats b { text-shadow: 0 0 8px color-mix(in srgb, var(--glow) 70%, transparent); }
+/* glowing seam where the hologram meets the keyboard */
+.holo .window::before {
+  content: ""; position: absolute; left: 4%; right: 4%; bottom: -1px; height: 3px; border-radius: 3px; z-index: 1;
+  background: var(--glow); box-shadow: 0 0 14px 2px color-mix(in srgb, var(--glow) 80%, transparent);
+  pointer-events: none;
+}
+:root:not([data-theme="dark"]) .holo .window::before {
+  background: var(--glow-edge); box-shadow: 0 0 14px 2px color-mix(in srgb, var(--glow-edge) 60%, transparent);
+}
+@media (prefers-reduced-motion: reduce) { .holo .window { animation: none; } }
 .window {
   border-radius: 10px; overflow: hidden; background: var(--win-bg);
   box-shadow: 0 0 0 1px var(--win-line), 0 22px 44px -22px rgba(0, 0, 0, 0.45);
@@ -334,10 +407,47 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 /* deck: aluminium, Touch Bar, then the black keys */
 .deck {
   display: flex; flex-direction: column; gap: 9px; user-select: none; -webkit-user-select: none;
-  padding: 14px 14px 18px; border-radius: 10px 10px 20px 20px;
-  background: linear-gradient(180deg, var(--alu-top), var(--alu-bot));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -1px 0 rgba(0, 0, 0, 0.1), 0 24px 36px -24px rgba(0, 0, 0, 0.55);
+  position: relative; padding: 16px 16px 20px; border-radius: 20px;
+  background: linear-gradient(180deg, var(--case-top), var(--case-bot));
+  /* chamfered top edge catching the light */
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 0 rgba(0, 0, 0, 0.12),
+    inset 2px 0 0 rgba(255, 255, 255, 0.18), inset -2px 0 0 rgba(0, 0, 0, 0.08), 0 30px 40px -26px rgba(0, 0, 0, 0.6);
 }
+/* 3D: the deck is tilted back on a perspective stage. Its slanted front lip
+   carries the RGB bar; the underglow is drawn on the (flat) desk below. */
+.pg { --tilt-x: 30deg; --tilt-y: 0deg; --win-x: 8deg; }
+.deck-stage { position: relative; perspective: 1500px; perspective-origin: 50% -30%; padding-bottom: 34px; margin-top: -6px; }
+.deck {
+  transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-origin: 50% 100%; transform-style: preserve-3d;
+  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.deck-front {
+  position: absolute; left: 4px; right: 4px; top: calc(100% - 6px); height: 42px;
+  /* slanted front lip in the case's own material: undo the deck tilt, then
+     lean 20° so it nearly faces you. Darker toward the bottom for depth. */
+  transform-origin: 50% 0; transform: rotateX(calc(-1 * var(--tilt-x) - 20deg));
+  border-radius: 0 0 18px 18px;
+  background: linear-gradient(180deg, var(--case-bot), color-mix(in srgb, var(--case-bot) 70%, #000));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), inset 0 -3px 6px rgba(0, 0, 0, 0.25);
+}
+.rgb-bar {
+  position: absolute; left: 20px; width: calc(100% - 40px); top: 15px; height: 8px; border-radius: 5px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 0 12px -2px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
+}
+.rgb-glow {
+  position: absolute; left: 6%; width: 88%; bottom: -6px; height: 46px; z-index: -1;
+  filter: blur(26px); opacity: 0.55; pointer-events: none;
+}
+:root[data-theme="dark"] .rgb-glow { opacity: 0.9; }
+.deck-stage { isolation: isolate; }
+/* invisible marker along the deck's back edge, measured to size the hologram */
+.deck-edge { position: absolute; left: 0; right: 0; top: 0; height: 1px; pointer-events: none; }
+
+/* keys stand up off the plate */
+.keyboard, .krow, .arrows { transform-style: preserve-3d; }
+
 .touchbar {
   display: flex; align-items: center; gap: 6px; height: 38px; padding: 0 5px;
   border-radius: 7px; background: #050506; overflow-x: auto; scrollbar-width: none;
@@ -353,8 +463,61 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 .touchbar .chip:hover, .tb-btn:hover { background: #3a3a3c; }
 .touchbar .chip[aria-checked="true"] { background: var(--glow); color: var(--glow-ink); }
 .tb-btn { margin-left: auto; background: #3a3a3c; }
+.tb-reset { margin-left: 0; }
+.tb-row { display: flex; align-items: center; gap: 12px; }
+.tb-row .touchbar { flex: 1; min-width: 0; }
 .tb-btn:active { background: #545456; }
 .tb-sep { flex: none; width: 1px; height: 18px; background: rgba(255, 255, 255, 0.14); }
+
+/* Rotary knob at the end of the top row. Decorative: it turns to match the
+   feel bars and its LED ring fills in the sound's colour. */
+@property --sweep { syntax: "<angle>"; inherits: true; initial-value: 135deg; }
+.knob {
+  --angle: 0deg; --sweep: 135deg;
+  position: relative; isolation: isolate; flex: none; width: 40px; height: 40px; margin: 0 6px; border-radius: 50%;
+  pointer-events: none;
+  /* brushed metal cap */
+  background:
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.12) 59% 62%, transparent 63%),
+    radial-gradient(circle at 35% 28%, #ffffff, #d7d9de 45%, #a9adb5 100%);
+  box-shadow: 0 4px 0 #7d818a, 0 9px 12px -4px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  transition: --sweep 450ms cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+:root[data-theme="dark"] .knob {
+  background:
+    radial-gradient(circle at 50% 50%, transparent 58%, rgba(0, 0, 0, 0.3) 59% 62%, transparent 63%),
+    radial-gradient(circle at 35% 28%, #7a7c84, #4a4c53 45%, #2a2b30 100%);
+  box-shadow: 0 4px 0 #141417, 0 9px 12px -4px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+}
+/* knurled grip around the edge */
+.knob::after {
+  content: ""; position: absolute; inset: 0; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(0, 0, 0, 0.16) 0 3deg, transparent 3deg 7deg);
+  -webkit-mask: radial-gradient(circle, transparent 15px, #000 16px);
+          mask: radial-gradient(circle, transparent 15px, #000 16px);
+}
+/* LED ring on the case around the knob */
+.knob::before {
+  content: ""; position: absolute; inset: -6px; border-radius: 50%; z-index: -1;
+  background: conic-gradient(from -135deg, var(--glow) 0 var(--sweep), rgba(0, 0, 0, 0.18) var(--sweep) 270deg, transparent 270deg);
+  -webkit-mask: radial-gradient(circle, transparent 21px, #000 22px);
+          mask: radial-gradient(circle, transparent 21px, #000 22px);
+  filter: drop-shadow(0 0 4px var(--glow));
+}
+:root:not([data-theme="dark"]) .knob::before {
+  /* pastel glows vanish on the cream case: use the deeper edge colour and a darker track */
+  background: conic-gradient(from -135deg, var(--glow-edge) 0 var(--sweep), rgba(60, 40, 20, 0.22) var(--sweep) 270deg, transparent 270deg);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--glow-edge) 60%, transparent));
+}
+.knob-dial {
+  position: absolute; inset: 0; border-radius: 50%;
+  transform: rotate(var(--angle));
+  transition: transform 520ms cubic-bezier(0.34, 1.56, 0.64, 1); /* springy settle */
+}
+.knob-dial::after { /* indicator line */
+  content: ""; position: absolute; left: 50%; top: 4px; width: 3px; height: 11px; margin-left: -1.5px;
+  border-radius: 2px; background: var(--glow-edge, var(--accent)); box-shadow: 0 0 4px var(--glow);
+}
 .feel { flex: none; display: flex; align-items: center; gap: 8px; padding: 0 4px; }
 .feel output { min-width: 50px; font: 500 12px/1 var(--body); color: #cfcfd4; }
 .levels { display: flex; align-items: flex-end; gap: 3px; height: 24px; }
@@ -368,39 +531,76 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
 .level.on .block { background: var(--glow); }
 .level:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; border-radius: 4px; }
 
+/* recessed plate the keys sit in */
 .keyboard {
-  display: flex; flex-direction: column; gap: 6px; padding: 7px; border-radius: 10px;
-  background: var(--kb-well); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; gap: 5px; padding: 9px 9px 11px; border-radius: 10px;
+  background: var(--plate);
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.35), inset 0 -1px 0 rgba(255, 255, 255, 0.15);
 }
-.krow { display: flex; gap: 6px; }
+.krow { display: flex; gap: 5px; }
+.krow.fn { margin-bottom: 7px; }
+.kgap { flex: var(--w) 1 0; }
+
+/* Sculpted keycaps standing up off the plate: skirt with sloped walls,
+   dished top (::before), a tall front wall and a contact shadow. */
 .key {
-  position: relative; flex: var(--w, 1) 1 0; min-width: 0; height: 44px; padding: 0;
-  display: grid; place-items: center; border: 0; border-radius: 6px;
-  background: #1d1d1f; color: #e6e6e9; font: 500 14px/1 var(--body);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 0 rgba(0, 0, 0, 0.5), 0 2px 3px -1px rgba(0, 0, 0, 0.4);
-  cursor: pointer; overflow: hidden; touch-action: manipulation;
-  transition: transform 40ms ease-out, background 80ms;
+  --cap: var(--cap-alpha); --cap-edge: var(--cap-alpha-edge); --cap-ink: var(--cap-alpha-ink);
+  position: relative; isolation: isolate; flex: var(--w, 1) 1 0; min-width: 0; height: 46px;
+  display: flex; align-items: flex-start; justify-content: flex-start; padding: 6px 0 0 10px;
+  border: 1px solid var(--cap-edge); border-radius: 8px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cap) 94%, #fff), var(--cap) 45%, color-mix(in srgb, var(--cap) 82%, #000));
+  box-shadow:
+    inset 3px 0 4px -2px rgba(255, 255, 255, 0.35), inset -3px 0 5px -2px rgba(0, 0, 0, 0.15),
+    inset 0 -7px 8px -4px rgba(0, 0, 0, 0.22),
+    0 6px 0 var(--cap-edge), 0 10px 12px -4px rgba(0, 0, 0, 0.45);
+  color: var(--cap-ink); font: 600 12px/1 var(--body); white-space: nowrap;
+  transform: translateZ(8px); cursor: pointer; overflow: hidden; touch-action: manipulation;
+  transition: transform 45ms ease-out, box-shadow 45ms ease-out;
+}
+.key::before { /* the dished top surface */
+  content: ""; position: absolute; z-index: -1; left: 5px; right: 5px; top: 3px; bottom: 10px; border-radius: 6px;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.05), rgba(255, 255, 255, 0.16) 50%, rgba(0, 0, 0, 0.05)),
+    linear-gradient(180deg, color-mix(in srgb, var(--cap) 84%, #fff), color-mix(in srgb, var(--cap) 96%, #fff));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 1px rgba(0, 0, 0, 0.1);
 }
 .legend { pointer-events: none; transition: color 80ms, text-shadow 120ms; }
-/* modifiers: small word legend, bottom-left (bottom-right on the right side) */
-.k-m { place-items: end start; padding: 0 0 7px 9px; font-size: 10.5px; }
-.k-r { place-items: end end; padding: 0 9px 7px 0; }
-/* ⌃ ⌥ ⌘: just the symbol, a little bigger */
-.k-sym { font-size: 14px; padding-bottom: 6px; }
-:root[data-theme="dark"] .legend { text-shadow: 0 0 4px rgba(255, 255, 255, 0.22); } /* keyboard backlight */
-.key.down { transform: translateY(1px); background: #2b2b2e; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 14px -3px var(--glow); }
-.key.down .legend { color: #fff; text-shadow: 0 0 6px var(--glow), 0 0 14px var(--glow); }
-.key.latched .legend { color: var(--glow); }
-/* inverted-T arrows: half-height keys */
-.arrows {
-  flex: var(--w) 1 0; min-width: 0; height: 44px;
-  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap: 2px 5px;
+.k-m { --cap: var(--cap-mod); --cap-edge: var(--cap-mod-edge); --cap-ink: var(--cap-mod-ink); }
+.k-m, .k-x { align-items: flex-end; padding: 0 0 15px 10px; font-size: 10px; }
+.k-x { --cap: var(--glow); --cap-edge: var(--glow-edge, var(--accent)); --cap-ink: var(--glow-ink); }
+.k-arrow { justify-content: center; align-items: center; padding: 0 0 8px; font-size: 14px; }
+.krow.fn .key { height: 36px; padding-bottom: 12px; }
+.krow.fn .key::before { bottom: 8px; }
+/* dark mode: matte, PBT-like caps (no glossy highlights) */
+:root[data-theme="dark"] .key {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--cap) 97%, #fff), var(--cap) 40%, color-mix(in srgb, var(--cap) 88%, #000));
+  box-shadow:
+    inset 2px 0 3px -2px rgba(255, 255, 255, 0.06), inset -3px 0 5px -2px rgba(0, 0, 0, 0.25),
+    inset 0 -7px 8px -4px rgba(0, 0, 0, 0.3),
+    0 6px 0 var(--cap-edge), 0 10px 12px -4px rgba(0, 0, 0, 0.55);
 }
-.arrows .key { height: auto; border-radius: 4px; font-size: 7px; }
-.arrows .key:nth-child(1) { grid-area: 2 / 1; }
-.arrows .key:nth-child(2) { grid-area: 1 / 2; }
-.arrows .key:nth-child(3) { grid-area: 2 / 2; }
-.arrows .key:nth-child(4) { grid-area: 2 / 3; }
+:root[data-theme="dark"] .key::before {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.08), rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.08)),
+    linear-gradient(180deg, color-mix(in srgb, var(--cap) 95%, #fff), var(--cap));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+:root[data-theme="dark"] .key.down {
+  box-shadow:
+    inset 2px 0 3px -2px rgba(255, 255, 255, 0.06), inset -3px 0 5px -2px rgba(0, 0, 0, 0.25),
+    inset 0 -7px 8px -4px rgba(0, 0, 0, 0.3),
+    0 2px 0 var(--cap-edge), 0 0 18px 2px color-mix(in srgb, var(--glow) 75%, transparent);
+}
+/* pressed: the cap travels down and light from the switch shines up around it */
+.key.down {
+  transform: translateZ(2px) translateY(4px);
+  box-shadow:
+    inset 3px 0 4px -2px rgba(255, 255, 255, 0.35), inset -3px 0 5px -2px rgba(0, 0, 0, 0.15),
+    inset 0 -7px 8px -4px rgba(0, 0, 0, 0.22),
+    0 2px 0 var(--cap-edge), 0 0 18px 2px color-mix(in srgb, var(--glow) 75%, transparent);
+}
+.key.down .legend { text-shadow: 0 0 8px var(--glow); }
+.key.latched { outline: 2px solid var(--glow); outline-offset: -2px; }
 
 /* features */
 .features { background: var(--bg-2); }
@@ -487,7 +687,13 @@ main > section { padding: 96px max(16px, calc((100vw - 1120px) / 2)); }
   .k-r { padding: 0 4px 4px 0; }
   .arrows { height: 34px; gap: 1px 2px; }
   /* phones type with their own keyboard: no on-screen keys, just the Touch Bar */
-  .keyboard { display: none; }
+  .keyboard, .deck-front, .rgb-glow, .knob { display: none; }
+  .deck, .holo { transform: none; }
+  .holo-stage { padding-bottom: 0; margin-bottom: 0; }
+  .holo .window::before { display: none; }
+  .holo-stage { margin-bottom: 0 !important; }
+  .holo { width: 100%; }
+  .deck-stage { padding-bottom: 0; }
   /* Touch Bar wraps to two rows on phones so every control stays visible */
   .touchbar { height: auto; flex-wrap: wrap; padding: 5px; gap: 5px; overflow: visible; }
   .touchbar .chips { flex: 1 1 100%; flex-wrap: wrap; }

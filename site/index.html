@@ -96,38 +96,55 @@
       <!-- Playground: the typing test in a macOS-style window, above a MacBook
            Pro deck (controls on the Touch Bar, then the keys). -->
       <div class="pg laptop" id="macbook">
-        <div class="window">
-          <div class="titlebar">
-            <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
-            <span class="wtitle" id="wtitle">Creamy.txt</span>
-          </div>
-          <div class="passage-wrap" id="passage-wrap">
-            <div class="passage" id="passage" aria-hidden="true"></div>
-            <!-- Real text field on top, so phones open their keyboard when you tap the text. -->
-            <input class="pg-input" id="pg-input" type="text" aria-label="Typing test. Tap here and start typing."
-              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
-          </div>
-          <div class="statusbar">
-            <span id="pg-hint" class="muted">Mistakes show in red. Backspace to fix them.</span>
-            <span class="pg-stats">
-              <span><b id="pg-wpm">0</b> wpm</span>
-              <span><b id="pg-acc">100</b>%<i class="tb-word"> accuracy</i></span>
-              <span><b id="pg-time">0.0</b>s</span>
-            </span>
+        <!-- The typing test is a hologram projected up from the keyboard. -->
+        <div class="deck-stage holo-stage">
+        <div class="holo" id="screen3d">
+          <div class="window">
+            <div class="titlebar">
+              <span class="lights" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="wtitle" id="wtitle">Creamy.txt</span>
+            </div>
+            <div class="passage-wrap" id="passage-wrap">
+              <div class="passage" id="passage" aria-hidden="true"></div>
+              <!-- Real text field on top, so phones open their keyboard when you tap the text. -->
+              <input class="pg-input" id="pg-input" type="text" aria-label="Typing test. Tap here and start typing."
+                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" />
+            </div>
+            <div class="statusbar">
+              <span id="pg-hint" class="muted">Mistakes show in red. Backspace to fix them.</span>
+              <span class="pg-stats">
+                <span><b id="pg-wpm">0</b> wpm</span>
+                <span><b id="pg-acc">–</b><i class="tb-word"> accuracy</i></span>
+                <span><b id="pg-time">0.0</b>s</span>
+              </span>
+            </div>
           </div>
         </div>
-        <div class="deck">
-          <div class="touchbar">
-            <div class="chips" id="pg-chips" role="radiogroup" aria-label="Sound"></div>
-            <span class="tb-sep" aria-hidden="true"></span>
-            <div class="feel">
-              <span class="sr-only"><span id="feel-name">Creamy</span> feel</span>
-              <div class="levels" id="levels" role="radiogroup" aria-label="Soft to hard"></div>
-              <output id="feel-value">Medium</output>
+        </div>
+        <!-- The keyboard sits on a "desk" in 3D: tilted back, with a front face
+             that carries the RGB bar, and an underglow on the desk below. -->
+        <div class="deck-stage" id="deck-stage">
+        <div class="deck" id="deck">
+          <span class="deck-edge" id="deck-edge" aria-hidden="true"></span>
+          <!-- top row: the Touch Bar, then a decorative knob that follows the feel bars -->
+          <div class="tb-row">
+            <div class="touchbar">
+              <div class="chips" id="pg-chips" role="radiogroup" aria-label="Sound"></div>
+              <button class="tb-btn" id="pg-new">New text</button>
+              <button class="tb-btn tb-reset" id="pg-reset" title="Start this text again">Reset</button>
+              <span class="tb-sep" aria-hidden="true"></span>
+              <div class="feel">
+                <span class="sr-only"><span id="feel-name">Creamy</span> feel</span>
+                <div class="levels" id="levels" role="radiogroup" aria-label="Soft to hard"></div>
+                <output id="feel-value">Medium</output>
+              </div>
             </div>
-            <button class="tb-btn" id="pg-new">New text</button>
+            <span class="knob" id="knob" aria-hidden="true"><span class="knob-dial"></span></span>
           </div>
           <div class="keyboard" id="keyboard" aria-label="Keyboard. Click keys to hear them."></div>
+          <div class="deck-front" aria-hidden="true"><canvas class="rgb-bar" id="rgb-bar"></canvas></div>
+        </div>
+        <canvas class="rgb-glow" id="rgb-glow" aria-hidden="true"></canvas>
         </div>
       </div>
     </section>
