@@ -6,7 +6,7 @@ const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 // ---------- downloads ----------
 
 // Release assets use Tauri's default bundle names. Update VERSION on release.
-const VERSION = "0.2.2";
+const VERSION = "0.3.0";
 const RELEASES = "https://github.com/govindaroyaiub/keybuddy/releases/latest/download/";
 
 const ICONS = {

@@ -1,6 +1,6 @@
 [package]
 name = "keybuddy"
-version = "0.2.2"
+version = "0.3.0"
 description = "Satisfying keyboard sounds for every key, in every app."
 edition = "2021"
 
