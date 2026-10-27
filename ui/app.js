@@ -5,63 +5,242 @@ const $ = (id) => document.getElementById(id);
 let settings = null;
 let platform = "macos";
 
-// [evdev code, label, width] — mirrors src-tauri/src/keymap.rs
+// KeyBuddy custom 75% board, same as the website: [code, label, width, kind]
+//   kind: "a" alpha cap, "m" modifier cap, "x" accent cap (wears the picked
+//   sound's colour). code null = gap. Codes mirror src-tauri/src/keymap.rs.
 const ROWS = () => {
-  const mac = platform === "macos";
+  const M = platform === "macos";
   return [
-    [[1, "esc", 1.5], [59, "F1"], [60, "F2"], [61, "F3"], [62, "F4"], [63, "F5"], [64, "F6"],
-     [65, "F7"], [66, "F8"], [67, "F9"], [68, "F10"], [87, "F11"], [88, "F12"], [111, "del", 1.5]],
-    [[41, "`"], [2, "1"], [3, "2"], [4, "3"], [5, "4"], [6, "5"], [7, "6"], [8, "7"], [9, "8"],
-     [10, "9"], [11, "0"], [12, "-"], [13, "="], [14, mac ? "delete" : "backspace", 2]],
-    [[15, "tab", 1.5], [16, "Q"], [17, "W"], [18, "E"], [19, "R"], [20, "T"], [21, "Y"], [22, "U"],
-     [23, "I"], [24, "O"], [25, "P"], [26, "["], [27, "]"], [43, "\\", 1.5]],
-    [[58, "caps", 1.75], [30, "A"], [31, "S"], [32, "D"], [33, "F"], [34, "G"], [35, "H"], [36, "J"],
-     [37, "K"], [38, "L"], [39, ";"], [40, "'"], [28, mac ? "return" : "enter", 2.25]],
-    [[42, "shift", 2.25], [44, "Z"], [45, "X"], [46, "C"], [47, "V"], [48, "B"], [49, "N"], [50, "M"],
-     [51, ","], [52, "."], [53, "/"], [54, "shift", 2.75]],
-    mac
-      ? [[464, "fn"], [29, "ctrl"], [56, "opt"], [125, "cmd", 1.25], [57, "", 6.25], [126, "cmd", 1.25],
-         [100, "opt"], [105, "←"], [108, "↓"], [106, "→"]]
-      : [[29, "ctrl", 1.25], [125, "win", 1.25], [56, "alt", 1.25], [57, "", 6.25], [100, "alt", 1.25],
-         [126, "win", 1.25], [127, "menu", 1.25], [97, "ctrl", 1.25]],
+    [[1, "esc", 1, "x"], [null, "", 0.25], [59, "F1", 1, "m"], [60, "F2", 1, "m"], [61, "F3", 1, "m"], [62, "F4", 1, "m"],
+     [null, "", 0.25], [63, "F5"], [64, "F6"], [65, "F7"], [66, "F8"], [null, "", 0.25],
+     [67, "F9", 1, "m"], [68, "F10", 1, "m"], [87, "F11", 1, "m"], [88, "F12", 1, "m"], [null, "", 0.25],
+     [111, "del", 1, "m"], [110, "ins", 1, "m"]],
+    [[41, "`"], [2, "1"], [3, "2"], [4, "3"], [5, "4"], [6, "5"], [7, "6"], [8, "7"], [9, "8"], [10, "9"], [11, "0"],
+     [12, "-"], [13, "="], [14, M ? "delete" : "backspace", 2, "m"], [102, "home", 1, "m"]],
+    [[15, "tab", 1.5, "m"], [16, "Q"], [17, "W"], [18, "E"], [19, "R"], [20, "T"], [21, "Y"], [22, "U"], [23, "I"],
+     [24, "O"], [25, "P"], [26, "["], [27, "]"], [43, "\\", 1.5], [104, "pg up", 1, "m"]],
+    [[58, "caps", 1.75, "m"], [30, "A"], [31, "S"], [32, "D"], [33, "F"], [34, "G"], [35, "H"], [36, "J"], [37, "K"],
+     [38, "L"], [39, ";"], [40, "'"], [28, M ? "return" : "enter", 2.25, "x"], [109, "pg dn", 1, "m"]],
+    [[42, "shift", 2.25, "m"], [44, "Z"], [45, "X"], [46, "C"], [47, "V"], [48, "B"], [49, "N"], [50, "M"], [51, ","],
+     [52, "."], [53, "/"], [54, "shift", 1.75, "m"], [103, "↑", 1, "m"], [107, "end", 1, "m"]],
+    M
+      ? [[29, "ctrl", 1.25, "m"], [56, "opt", 1.25, "m"], [125, "cmd", 1.25, "m"], [57, "", 6.25], [126, "cmd", 1, "m"],
+         [100, "opt", 1, "m"], [464, "fn", 1, "m"], [105, "←", 1, "m"], [108, "↓", 1, "m"], [106, "→", 1, "m"]]
+      : [[29, "ctrl", 1.25, "m"], [125, "win", 1.25, "m"], [56, "alt", 1.25, "m"], [57, "", 6.25], [100, "alt", 1, "m"],
+         [127, "menu", 1, "m"], [97, "ctrl", 1, "m"], [105, "←", 1, "m"], [108, "↓", 1, "m"], [106, "→", 1, "m"]],
   ];
 };
 
+// Browser key codes -> evdev, so typing inside this window lights the keys
+// even before the system-wide hook is allowed.
+const CODES = {
+  Escape: 1, Digit1: 2, Digit2: 3, Digit3: 4, Digit4: 5, Digit5: 6, Digit6: 7, Digit7: 8, Digit8: 9,
+  Digit9: 10, Digit0: 11, Minus: 12, Equal: 13, Backspace: 14, Tab: 15, KeyQ: 16, KeyW: 17, KeyE: 18,
+  KeyR: 19, KeyT: 20, KeyY: 21, KeyU: 22, KeyI: 23, KeyO: 24, KeyP: 25, BracketLeft: 26, BracketRight: 27,
+  Enter: 28, ControlLeft: 29, KeyA: 30, KeyS: 31, KeyD: 32, KeyF: 33, KeyG: 34, KeyH: 35, KeyJ: 36,
+  KeyK: 37, KeyL: 38, Semicolon: 39, Quote: 40, Backquote: 41, ShiftLeft: 42, Backslash: 43, KeyZ: 44,
+  KeyX: 45, KeyC: 46, KeyV: 47, KeyB: 48, KeyN: 49, KeyM: 50, Comma: 51, Period: 52, Slash: 53,
+  ShiftRight: 54, AltLeft: 56, Space: 57, CapsLock: 58, F1: 59, F2: 60, F3: 61, F4: 62, F5: 63, F6: 64,
+  F7: 65, F8: 66, F9: 67, F10: 68, F11: 87, F12: 88, ControlRight: 97, AltRight: 100, Home: 102,
+  ArrowUp: 103, PageUp: 104, ArrowLeft: 105, ArrowRight: 106, End: 107, ArrowDown: 108, PageDown: 109,
+  Insert: 110, Delete: 111, MetaLeft: 125, MetaRight: 126, ContextMenu: 127, Fn: 464,
+};
+
+// Each sound's cap colours (same as the website); recorded packs use the accent.
+const GLOWS = {
+  creamy: ["#f4e7d0", "#c9b08a", "#6b5233"],
+  poppy: ["#cbbcff", "#8a6fd8", "#35256b"],
+  clacky: ["#c3ead3", "#7db796", "#285a3e"],
+  thocky: ["#6e4c3b", "#3e281e", "#f6e4d4"],
+  clicky: ["#a3cbff", "#5c8dcf", "#1d3e6b"],
+  lego: ["#ffd462", "#cf9f28", "#6b4c0a"],
+};
+
+function renderGlow() {
+  const [glow, edge, ink] = GLOWS[settings.pack] || ["#ff8a57", "#c4582c", "#fff"];
+  const pg = $("pg");
+  pg.style.setProperty("--glow", glow);
+  pg.style.setProperty("--glow-edge", edge);
+  pg.style.setProperty("--glow-ink", ink);
+  const pack = currentPacks.find((p) => p.id === settings.pack);
+  $("wtitle").textContent = `${pack ? pack.name : "Typing"}.txt`;
+}
+
+// ---------- fit the stage to the window ----------
+
+// The Playground never scrolls: the stage is laid out at a fixed design width
+// and zoomed to whatever room the window leaves. Then the hologram is sized
+// to the keyboard's back edge as it looks on screen (the board is tilted, so
+// that edge appears narrower) and lowered until it sits right on it.
+const PG_W = 840;
+
+// Sounds tab: same idea, zoomed to fit its box.
+function fitSounds() {
+  const box = $("snd-fit");
+  const snd = $("snd");
+  if (!box.clientWidth || !box.clientHeight) return;
+  snd.style.zoom = 1;
+  snd.style.zoom = Math.min(1, box.clientWidth / PG_W, box.clientHeight / snd.offsetHeight);
+}
+
+function fitStage() {
+  const box = $("pg-fit");
+  const pg = $("pg");
+  const stage = $("holo-stage");
+  if (!box.clientWidth || !box.clientHeight) return; // tab hidden
+  pg.style.zoom = 1;
+  stage.style.marginBottom = "0px";
+  const deck = $("deck").getBoundingClientRect();
+  const edge = $("deck-edge").getBoundingClientRect();
+  if (deck.width > 0) pg.style.setProperty("--back-w", `${(edge.width / deck.width) * 100}%`);
+  const gap = edge.top - $("holo").getBoundingClientRect().bottom;
+  stage.style.marginBottom = `${Math.round(-gap)}px`;
+  const z = Math.min(1, box.clientWidth / PG_W, box.clientHeight / pg.offsetHeight);
+  pg.style.zoom = z;
+}
+
 const keyEls = new Map();
+const KEY_X = new Map(); // 0 = left edge, 1 = right edge: where RGB ripples start
+
+function makeKey(code, label, kind) {
+  const k = document.createElement("button");
+  k.className = `key k-${kind}`;
+  if (["↑", "↓", "←", "→"].includes(label)) k.classList.add("k-arrow");
+  k.innerHTML = `<span class="legend">${esc(label)}</span>`;
+  k.tabIndex = -1;
+  k.setAttribute("aria-label", label || "space");
+  let downAt = 0;
+  let releaseTimer = 0;
+  k.addEventListener("pointerdown", (e) => {
+    e.preventDefault(); // keep focus in the typing test
+    clearTimeout(releaseTimer);
+    downAt = performance.now();
+    invoke("tap", { code });
+    setKey(code, true);
+  });
+  const up = () => {
+    if (!k.classList.contains("down")) return;
+    // a click is over in ~50 ms; hold the pressed look so the cap visibly travels
+    const wait = Math.max(0, 120 - (performance.now() - downAt));
+    clearTimeout(releaseTimer);
+    releaseTimer = setTimeout(() => setKey(code, false), wait);
+  };
+  k.addEventListener("pointerup", up);
+  k.addEventListener("pointerleave", up);
+  if (!keyEls.has(code)) keyEls.set(code, []);
+  keyEls.get(code).push(k);
+  return k;
+}
 
 function buildKeyboard() {
   const kb = $("keyboard");
   kb.innerHTML = "";
   keyEls.clear();
-  for (const row of ROWS()) {
+  KEY_X.clear();
+  ROWS().forEach((row, i) => {
     const r = document.createElement("div");
-    r.className = "krow";
-    for (const [code, label, w = 1] of row) {
-      const k = document.createElement("button");
-      k.className = "key";
-      k.style.setProperty("--w", w);
-      k.textContent = label;
-      k.tabIndex = -1;
-      k.addEventListener("mousedown", () => {
-        invoke("tap", { code });
-        flash(code);
-      });
-      r.appendChild(k);
-      if (!keyEls.has(code)) keyEls.set(code, []);
-      keyEls.get(code).push(k);
+    r.className = i === 0 ? "krow fn" : "krow";
+    const total = row.reduce((s, k) => s + (k[2] || 1), 0);
+    let x = 0;
+    for (const [code, label, w = 1, kind = "a"] of row) {
+      if (code === null) {
+        const gap = document.createElement("span");
+        gap.className = "kgap";
+        gap.style.setProperty("--w", w);
+        r.appendChild(gap);
+      } else {
+        KEY_X.set(code, (x + w / 2) / total);
+        const k = makeKey(code, label, kind);
+        k.style.setProperty("--w", w);
+        r.appendChild(k);
+      }
+      x += w;
     }
     kb.appendChild(r);
-  }
+  });
 }
 
 function setKey(code, down) {
-  for (const el of keyEls.get(code) || []) el.classList.toggle("down", down);
+  const els = keyEls.get(code) || [];
+  const was = els.length && els[0].classList.contains("down");
+  for (const el of els) el.classList.toggle("down", down);
+  if (down && !was) {
+    rgbPulse(KEY_X.get(code) ?? 0.5);
+    bounce();
+  }
 }
 
-function flash(code) {
-  setKey(code, true);
-  bounce();
-  setTimeout(() => setKey(code, false), 110);
+// ---------- RGB light bar ----------
+
+// A rainbow wave runs along the case's front lip. Each keypress sends a ripple
+// out from that key's position; typing faster speeds the wave up. The bar is
+// copied into a blurred canvas: the underglow on the "desk".
+const rgb = { hue: 0, energy: 0, ripples: [], last: 0, running: false };
+
+function rgbPulse(x) {
+  rgb.ripples.push({ x, t: 0 });
+  if (rgb.ripples.length > 24) rgb.ripples.shift();
+  rgb.energy = Math.min(rgb.energy + 1, 12);
+  rgbStart();
+}
+
+function hsl(h, s, l) {
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [f(0) * 255, f(8) * 255, f(4) * 255];
+}
+
+const RGB_W = 240;
+let rgbDraw = null; // set once the canvases are ready
+
+function setupRGB() {
+  const bar = $("rgb-bar");
+  const glow = $("rgb-glow");
+  for (const c of [bar, glow]) { c.width = RGB_W; c.height = 1; }
+  const ctx = bar.getContext("2d");
+  const gctx = glow.getContext("2d");
+  const img = ctx.createImageData(RGB_W, 1);
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  rgbDraw = (now) => {
+    const dt = rgb.last ? Math.min((now - rgb.last) / 1000, 0.05) : 0;
+    rgb.last = now;
+    rgb.energy *= Math.exp(-dt * 1.2);
+    rgb.hue = (rgb.hue + dt * (25 + rgb.energy * 22)) % 360;
+    for (const r of rgb.ripples) r.t += dt;
+    rgb.ripples = rgb.ripples.filter((r) => r.t < 0.9);
+    for (let i = 0; i < RGB_W; i++) {
+      const x = i / (RGB_W - 1);
+      let boost = 0;
+      for (const r of rgb.ripples) {
+        const front = r.t * 0.9;
+        const fade = 1 - r.t / 0.9;
+        const d = Math.min(Math.abs(x - (r.x - front)), Math.abs(x - (r.x + front)));
+        boost += Math.exp(-(d * d) / 0.0016) * fade + Math.exp(-((x - r.x) ** 2) / 0.0009) * fade * 0.6;
+      }
+      boost = Math.min(boost, 1.2);
+      const [rr, gg, bb] = hsl((rgb.hue + x * 300) % 360, 1, Math.min(0.5 + boost * 0.3, 0.9));
+      const a = Math.min(1, 0.62 + rgb.energy * 0.03 + boost * 0.4);
+      img.data.set([rr, gg, bb, a * 255], i * 4);
+    }
+    ctx.putImageData(img, 0, 0);
+    gctx.clearRect(0, 0, RGB_W, 1);
+    gctx.drawImage(bar, 0, 0);
+    // only animate while the Playground is showing and the window is visible
+    if (!reduce && rgbVisible()) requestAnimationFrame(rgbDraw);
+    else rgb.running = false;
+  };
+  rgbStart();
+}
+
+const rgbVisible = () => !document.hidden && $("tab-practice").getAttribute("aria-selected") === "true";
+
+function rgbStart() {
+  if (!rgbDraw || rgb.running || !rgbVisible()) return;
+  rgb.running = true;
+  rgb.last = 0;
+  requestAnimationFrame(rgbDraw);
 }
 
 let bounceTimer;
@@ -73,8 +252,6 @@ function bounce() {
 }
 
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-
-const PLAY_ICON = '<svg viewBox="0 0 12 12"><path d="M2 1l9 5-9 5z" fill="currentColor"/></svg>';
 
 function buildChips(packs) {
   const wrap = $("pack-chips");
@@ -95,46 +272,93 @@ function buildChips(packs) {
 
 let currentPacks = [];
 
+// Builds behind each recording (same as the website).
+const BUILDS = {
+  creamy: ["Evo80", "PP plate", "Neo x Keygeek Oat"],
+  poppy: ["Rainy75 Pro", "HMX Pink Pig"],
+  clacky: ["Rainy75", "Akko Cilantro"],
+  thocky: ["Crush80", "Ceramic keycaps", "Kailh Cocoa"],
+  clicky: ["QK65", "Outemu Ocean"],
+  lego: ["Luminkey80", "BSUN Dusty Rose"],
+};
+const ACCENT_CAP = ["#ff8a57", "#c4582c", "#fff"]; // recorded packs
+const capColors = (id) => GLOWS[id] || ACCENT_CAP;
+const capStyle = (id) => {
+  const [cap, edge, ink] = capColors(id);
+  return `--cap:${cap};--edge:${edge};--cap-ink:${ink}`;
+};
+
 function buildPacks(packs) {
   currentPacks = packs;
   buildChips(packs);
   const wrap = $("packs");
-  wrap.innerHTML = "";
-  for (const p of packs) {
-    const el = document.createElement("div");
-    el.className = "pack";
-    el.setAttribute("role", "radio");
-    el.tabIndex = 0;
-    el.dataset.id = p.id;
-    el.innerHTML = `
-      <div class="glyph">${esc([...p.name][0] || "?")}</div>
-      <div class="meta">
-        <div class="name">${esc(p.name)} <span class="kind">${esc(p.kind)}</span></div>
-        <div class="blurb">${esc(p.blurb)}</div>
-      </div>
-      <button class="play" title="Preview" aria-label="Preview ${esc(p.name)}">${PLAY_ICON}</button>
-      ${p.custom ? `<button class="del" title="Delete" aria-label="Delete ${esc(p.name)}">×</button>` : ""}`;
-    el.addEventListener("click", (e) => {
-      if (e.target.closest(".del")) {
-        if (confirm(`Delete "${p.name}"? This can't be undone.`)) invoke("delete_pack", { id: p.id });
-        return;
-      }
-      if (e.target.closest(".play")) {
-        invoke("preview", { pack: p.id });
-        return;
-      }
-      if (settings.pack !== p.id) {
-        save({ pack: p.id });
-        invoke("preview", { pack: p.id });
-      }
+  wrap.style.setProperty("--n", Math.max(packs.length, 6));
+  $("hint-last").textContent = Math.min(packs.length, 9);
+  wrap.innerHTML = packs.map((p, i) => `
+    <button class="tcap" role="radio" aria-checked="false" data-id="${esc(p.id)}" style="${capStyle(p.id)}"
+      aria-label="${esc(p.name)}${i < 9 ? `, key ${i + 1}` : ""}">
+      <span class="well"><span class="led"></span><span class="top"><span class="face"><b>${esc([...p.name][0] || "?")}</b></span></span></span>
+      <span class="tname">${esc(p.name)}</span>
+    </button>`).join("");
+  for (const cap of wrap.querySelectorAll(".tcap")) {
+    const id = cap.dataset.id;
+    cap.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      pressCap(id);
     });
-    el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    cap.addEventListener("keydown", (e) => {
+      if ((e.key === " " || e.key === "Enter") && !e.repeat) {
         e.preventDefault();
-        el.click();
+        pressCap(id);
       }
     });
-    wrap.appendChild(el);
+  }
+}
+
+// Press a cap: it sinks, picks that sound and plays one key with it.
+async function pressCap(id) {
+  const cap = document.querySelector(`.tcap[data-id="${CSS.escape(id)}"]`);
+  if (cap) {
+    cap.classList.add("down");
+    setTimeout(() => cap.classList.remove("down"), 130);
+  }
+  if (settings.pack !== id) {
+    settings = { ...settings, pack: id };
+    render();
+    await invoke("set_settings", { settings }); // load the bank before playing
+  }
+  invoke("tap", { code: 35 }); // the H key: a normal key near the middle
+}
+
+function renderInfo() {
+  const p = currentPacks.find((x) => x.id === settings.pack);
+  const box = $("pack-info");
+  if (!p) {
+    box.innerHTML = "";
+    return;
+  }
+  const build = BUILDS[p.id] || (p.custom ? ["Recorded by you"] : [p.kind]);
+  box.style.cssText = capStyle(p.id);
+  box.innerHTML = `
+    <span class="mini-cap" aria-hidden="true">${esc([...p.name][0] || "?")}</span>
+    <div class="info-text">
+      <h3>${esc(p.name)} <span class="kind">${esc(p.kind)}</span></h3>
+      <p>${esc(p.blurb)}</p>
+      <div class="build">${build.map((b) => `<span>${esc(b)}</span>`).join("")}</div>
+    </div>
+    <div class="info-actions">
+      <button class="btn primary" id="info-play">▶ Hear a sentence</button>
+      ${p.custom
+        ? `<button class="btn" id="info-del">Delete</button>`
+        : `<button class="btn" id="info-type">Type with it</button>`}
+    </div>`;
+  $("info-play").addEventListener("click", () => invoke("preview", { pack: p.id }));
+  if (p.custom) {
+    $("info-del").addEventListener("click", () => {
+      if (confirm(`Delete "${p.name}"? This can't be undone.`)) invoke("delete_pack", { id: p.id });
+    });
+  } else {
+    $("info-type").addEventListener("click", () => $("tab-practice").click());
   }
 }
 
@@ -147,10 +371,12 @@ function render() {
   const vol = Math.round(settings.volume * 100);
   $("volume").value = vol;
   $("volume-out").textContent = `${vol}%`;
-  for (const el of document.querySelectorAll(".pack, .chip")) {
+  for (const el of document.querySelectorAll(".tcap, .chip")) {
     el.setAttribute("aria-checked", String(el.dataset.id === settings.pack));
   }
   renderFeel();
+  renderGlow();
+  renderInfo();
   if (pr.pack !== null && pr.pack !== settings.pack) newPassage();
 }
 
@@ -186,6 +412,11 @@ function renderFeel() {
     el.classList.toggle("on", i <= lvl);
     el.setAttribute("aria-checked", String(i === lvl));
   });
+  // the knob isn't a control: it turns to match the bars, -135° (Pillow) to
+  // +135° (Hard), and its LED ring fills up
+  const turn = (lvl / (LEVELS.length - 1)) * 270;
+  $("knob").style.setProperty("--angle", `${turn - 135}deg`);
+  $("knob").style.setProperty("--sweep", `${turn}deg`);
 }
 
 function save(patch) {
@@ -260,14 +491,29 @@ async function init() {
   await listen("key", (e) => {
     const [code, down] = e.payload;
     setKey(code, down);
-    if (down) bounce();
   });
+  // Keys typed in this window light up too (the hook covers every other app).
+  addEventListener("keydown", (e) => CODES[e.code] && setKey(CODES[e.code], true));
+  addEventListener("keyup", (e) => CODES[e.code] && setKey(CODES[e.code], false));
+  addEventListener("blur", () => keyEls.forEach((els, code) => setKey(code, false)));
 
   setupRecorder();
   setupTabs();
   setupPractice();
   buildLevels();
   renderFeel();
+  setupRGB();
+  document.addEventListener("visibilitychange", rgbStart);
+  new ResizeObserver(fitStage).observe($("pg-fit"));
+  new ResizeObserver(fitSounds).observe($("snd-fit"));
+  // Sounds tab: number keys press the caps, like the website
+  document.addEventListener("keydown", (e) => {
+    const n = /^Digit([1-9])$/.exec(e.code);
+    if (!n || e.repeat || e.metaKey || e.ctrlKey || e.altKey || !$("rec").hidden) return;
+    if ($("tab-sounds").getAttribute("aria-selected") !== "true") return;
+    const p = currentPacks[Number(n[1]) - 1];
+    if (p) pressCap(p.id);
+  });
 
   // Poll only while the window is actually visible (not minimized/covered).
   setInterval(() => !document.hidden && pollStats(), 500);
@@ -286,7 +532,12 @@ function setupTabs() {
     for (const t of tabs) t.setAttribute("aria-selected", String(t.dataset.tab === name));
     for (const p of document.querySelectorAll(".tab-panel")) p.hidden = p.dataset.panel !== name;
     try { localStorage.setItem("tab", name); } catch {}
-    if (name === "practice") $("passage").focus();
+    if (name === "sounds") fitSounds();
+    if (name === "practice") {
+      fitStage();
+      $("passage").focus();
+      rgbStart();
+    }
   };
   for (const t of tabs) t.addEventListener("click", () => show(t.dataset.tab));
   let saved = "sounds";
@@ -347,8 +598,15 @@ const pr = { pack: null, text: "", typed: "", strokes: 0, errors: 0, start: 0, e
 function setupPractice() {
   const el = $("passage");
   el.addEventListener("keydown", onPracticeKey);
+  for (const id of ["p-new", "p-reset"]) {
+    $(id).addEventListener("mousedown", (e) => e.preventDefault()); // keep typing focus
+  }
   $("p-new").addEventListener("click", () => {
     newPassage();
+    el.focus();
+  });
+  $("p-reset").addEventListener("click", () => {
+    resetPassage();
     el.focus();
   });
   // In the Playground, just start typing: the first key jumps into the test.
@@ -369,7 +627,13 @@ function newPassage() {
   const list = passagesFor(pack);
   let i;
   do i = Math.floor(Math.random() * list.length); while (pack === pr.pack && i === pr.idx && list.length > 1);
-  Object.assign(pr, { pack, idx: i, text: list[i], typed: "", strokes: 0, errors: 0, start: 0, end: 0 });
+  Object.assign(pr, { pack, idx: i, text: list[i] });
+  resetPassage();
+}
+
+// Start the same text again.
+function resetPassage() {
+  Object.assign(pr, { typed: "", strokes: 0, errors: 0, start: 0, end: 0 });
   clearInterval(pr.timer);
   $("passage").classList.remove("done");
   $("p-hint").className = "hint";
