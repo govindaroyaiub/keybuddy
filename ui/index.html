@@ -52,86 +52,97 @@
     </div>
   </div>
 
-  <main class="grid tab-panel" data-panel="sounds" role="tabpanel" aria-labelledby="tab-sounds">
-    <section class="panel">
-      <h2>Sound</h2>
-      <div class="packs" id="packs" role="radiogroup" aria-label="Sound pack"></div>
-    </section>
-
-    <section class="panel">
-      <h2>Feel</h2>
-      <div class="row">
-        <label for="volume">Volume</label>
-        <div class="slider-wrap">
-          <input type="range" id="volume" min="0" max="100" step="1" />
-          <output id="volume-out">60%</output>
-        </div>
+  <!-- Sounds: the website's switch tester. One keycap per sound on a shared
+       base; press a cap to hear it and pick it. Settings sit under the row.
+       Scaled to fit the window, like the Playground. -->
+  <main class="sounds tab-panel" data-panel="sounds" role="tabpanel" aria-labelledby="tab-sounds">
+    <div class="pg-fit" id="snd-fit">
+      <div class="snd" id="snd">
+        <div class="tester-base" id="packs" role="radiogroup" aria-label="Sound. Press a keycap to hear it."></div>
+        <p class="tester-hint">Press a cap to hear it, or tap <kbd>1</kbd>–<kbd id="hint-last">6</kbd></p>
+        <div class="tester-info" id="pack-info" aria-live="polite"></div>
+        <section class="settings">
+          <div class="set vol">
+            <label for="volume">Volume</label>
+            <div class="slider-wrap">
+              <input type="range" id="volume" min="0" max="100" step="1" />
+              <output id="volume-out">60%</output>
+            </div>
+          </div>
+          <label class="set toggle">
+            <span>Key-up sounds<small>The softer click when a key springs back.</small></span>
+            <span class="switch"><input type="checkbox" id="key_up" /><span class="track"><span class="thumb"></span></span></span>
+          </label>
+          <label class="set toggle">
+            <span>Stereo by key position<small>Left keys sound left, right keys sound right.</small></span>
+            <span class="switch"><input type="checkbox" id="stereo" /><span class="track"><span class="thumb"></span></span></span>
+          </label>
+          <label class="set toggle">
+            <span>Launch at login<small>Start quietly in the menu bar.</small></span>
+            <span class="switch"><input type="checkbox" id="autostart" /><span class="track"><span class="thumb"></span></span></span>
+          </label>
+        </section>
       </div>
-      <label class="row toggle">
-        <span>
-          Key-up sounds
-          <small>The softer click when a key springs back.</small>
-        </span>
-        <span class="switch"><input type="checkbox" id="key_up" /><span class="track"><span class="thumb"></span></span></span>
-      </label>
-      <label class="row toggle">
-        <span>
-          Stereo by key position
-          <small>Left keys sound left, right keys sound right.</small>
-        </span>
-        <span class="switch"><input type="checkbox" id="stereo" /><span class="track"><span class="thumb"></span></span></span>
-      </label>
-      <label class="row toggle">
-        <span>
-          Launch at login
-          <small>Start quietly in the menu bar.</small>
-        </span>
-        <span class="switch"><input type="checkbox" id="autostart" /><span class="track"><span class="thumb"></span></span></span>
-      </label>
-    </section>
+    </div>
   </main>
 
   <main class="practice tab-panel" data-panel="practice" role="tabpanel" aria-labelledby="tab-practice" hidden>
-    <div class="toolbar">
-      <div class="chips-row" id="pack-chips" role="radiogroup" aria-label="Sound while typing"></div>
+    <div class="pg-top">
+      <div class="stats">
+        <div><b id="wpm">0</b><span>WPM now</span></div>
+        <div><b id="best-today">0</b><span>Best today</span></div>
+        <div><b id="best-ever">0</b><span>Best ever</span></div>
+        <div><b id="today">0</b><span>Keys today</span></div>
+      </div>
       <button class="btn rec-btn" id="record-open"><span class="rec-dot small"></span>Record your keyboard</button>
     </div>
 
-    <div class="feel">
-      <span class="feel-label"><b id="feel-name">Creamy</b> feel: <output id="feel-value">Medium</output></span>
-      <div class="levels" id="levels" role="radiogroup" aria-label="Soft to hard"></div>
-    </div>
-
-    <div class="stats">
-      <div><b id="wpm">0</b><span>WPM now</span></div>
-      <div><b id="best-today">0</b><span>Best today</span></div>
-      <div><b id="best-ever">0</b><span>Best ever</span></div>
-      <div><b id="today">0</b><span>Keys today</span></div>
-    </div>
-
-    <section class="panel">
-      <div class="panel-head">
-        <h2>Typing test</h2>
-        <div class="practice-stats">
-          <span><b id="p-wpm">0</b> wpm</span>
-          <span><b id="p-acc">–</b> accuracy</span>
-          <span><b id="p-time">0.0</b>s</span>
+    <!-- Same stage as the website's Playground: the typing test is a hologram
+         projected up from the keyboard; sounds and feel live on the Touch Bar.
+         The whole stage is scaled to fit the window, so nothing scrolls. -->
+    <div class="pg-fit" id="pg-fit">
+      <div class="pg" id="pg">
+        <div class="holo-stage" id="holo-stage">
+          <div class="holo" id="holo">
+            <div class="window">
+              <div class="titlebar"><span class="wtitle" id="wtitle">Creamy.txt</span></div>
+              <div class="passage" id="passage" tabindex="0" aria-label="Typing test. Click here and start typing."></div>
+              <div class="statusbar">
+                <span class="hint" id="p-hint">Click the text and start typing. Mistakes show in red; backspace to fix them.</span>
+                <span class="pg-stats">
+                  <span><b id="p-wpm">0</b> wpm</span>
+                  <span><b id="p-acc">–</b> accuracy</span>
+                  <span><b id="p-time">0.0</b>s</span>
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="passage" id="passage" tabindex="0" aria-label="Typing test. Click here and start typing."></div>
-      <div class="practice-foot">
-        <span class="hint" id="p-hint">Click the text and start typing. Mistakes show in red; backspace to fix them.</span>
-        <button class="btn" id="p-new">New text</button>
-      </div>
-    </section>
 
-    <section class="panel">
-      <div class="panel-head">
-        <h2>Keyboard</h2>
-        <span class="hint">Lights up as you type anywhere. Click a key to hear it.</span>
+        <section class="kb-stage" aria-label="Keyboard. Lights up as you type anywhere. Click a key to hear it.">
+          <div class="deck" id="deck">
+            <span class="deck-edge" id="deck-edge" aria-hidden="true"></span>
+            <div class="tb-row">
+              <div class="touchbar">
+                <div class="chips" id="pack-chips" role="radiogroup" aria-label="Sound while typing"></div>
+                <button class="tb-btn" id="p-new">New text</button>
+                <button class="tb-btn tb-reset" id="p-reset" title="Start this text again">Reset</button>
+                <span class="tb-sep" aria-hidden="true"></span>
+                <div class="feel">
+                  <span class="sr-only"><span id="feel-name">Creamy</span> feel</span>
+                  <div class="levels" id="levels" role="radiogroup" aria-label="Soft to hard"></div>
+                  <output id="feel-value">Medium</output>
+                </div>
+              </div>
+              <span class="knob" id="knob" aria-hidden="true"><span class="knob-dial"></span></span>
+            </div>
+            <div class="keyboard" id="keyboard"></div>
+            <div class="deck-front" aria-hidden="true"><canvas class="rgb-bar" id="rgb-bar"></canvas></div>
+          </div>
+          <canvas class="rgb-glow" id="rgb-glow" aria-hidden="true"></canvas>
+        </section>
       </div>
-      <div class="keyboard" id="keyboard"></div>
-    </section>
+    </div>
   </main>
 
   <footer class="foot">
